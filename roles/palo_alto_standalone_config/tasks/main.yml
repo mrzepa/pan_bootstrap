@@ -1,0 +1,172 @@
+---
+- name: Create logical router
+  paloaltonetworks.panos.panos_logical_router:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ palo_alto_standalone_config_logical_router_name }}"
+    state: present
+  register: palo_alto_standalone_config_logical_router_result
+  when: palo_alto_bootstrap_advanced_routing_enabled | bool
+
+- name: Configure standalone network interfaces and routing
+  ansible.builtin.include_tasks: network.yml
+  when: palo_alto_standalone_config_network | length > 0
+
+- name: Configure standalone system DNS and NTP
+  paloaltonetworks.panos.panos_mgtconfig:
+    provider: "{{ current_firewall_provider }}"
+    dns_server_primary: "{{ palo_alto_standalone_config_system_dns_primary }}"
+    dns_server_secondary: "{{ palo_alto_standalone_config_system_dns_secondary }}"
+    ntp_server_primary: "{{ palo_alto_standalone_config_system_ntp_primary }}"
+    ntp_server_secondary: "{{ palo_alto_standalone_config_system_ntp_secondary }}"
+    timezone: "{{ palo_alto_standalone_config_system_timezone }}"
+    login_banner: "{{ palo_alto_standalone_config_login_banner }}"
+  when: not ansible_check_mode
+
+- name: Apply standalone policy baseline
+  ansible.builtin.include_tasks: policy_baseline.yml
+  when:
+    - palo_alto_standalone_config_policy_baseline_enabled | bool
+    - palo_alto_standalone_config_network | length > 0
+
+- name: Configure dynamic update schedules
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: /config/devices/entry[@name='localhost.localdomain']/deviceconfig/system
+    element: |
+      <update-schedule>
+        <threats>
+          <recurring>
+            <daily>
+              <at>{{ palo_alto_standalone_config_dynamic_update_schedule_application_threats_at }}</at>
+              <action>download-and-install</action>
+            </daily>
+            <threshold>{{ palo_alto_standalone_config_dynamic_update_schedule_new_app_threshold_hours }}</threshold>
+          </recurring>
+        </threats>
+        <anti-virus>
+          <recurring>
+            <hourly>
+              <at>{{ palo_alto_standalone_config_dynamic_update_schedule_anti_virus_at }}</at>
+              <action>download-and-install</action>
+            </hourly>
+          </recurring>
+        </anti-virus>
+        <wildfire>
+          <recurring>
+            <every-min>
+              <action>download-and-install</action>
+            </every-min>
+          </recurring>
+        </wildfire>
+      </update-schedule>
+    state: present
+  when:
+    - palo_alto_standalone_config_dynamic_update_schedule_enabled | bool
+    - not ansible_check_mode
+
+- name: Check for security defaults vars file
+  ansible.builtin.stat:
+    path: "{{ security_defaults_file | default(playbook_dir ~ '/../vars/security_defaults.yml') }}"
+  register: palo_alto_standalone_config_security_defaults_vars_file
+  delegate_to: localhost
+  when: palo_alto_standalone_config_security_defaults_enabled | bool
+
+- name: Load security defaults
+  ansible.builtin.include_vars:
+    file: "{{ palo_alto_standalone_config_security_defaults_vars_file.stat.path }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - palo_alto_standalone_config_security_defaults_vars_file.stat.exists | default(false)
+
+- name: Validate security default certificates
+  check_certificate_validity:
+    path: "{{ playbook_dir }}/../{{ item.file }}"
+    minimum_valid_days: "{{ palo_alto_standalone_config_security_default_certificate_minimum_valid_days }}"
+  loop: "{{ security_default_certificates | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  delegate_to: localhost
+  when: palo_alto_standalone_config_security_defaults_enabled | bool
+
+- name: Import security default certificates
+  paloaltonetworks.panos.panos_import:
+    provider: "{{ current_firewall_provider }}"
+    category: certificate
+    certificate_name: "{{ item.name }}"
+    format: "{{ item.format | default('pem') }}"
+    filename: "{{ playbook_dir }}/../{{ item.file }}"
+  loop: "{{ security_default_certificates | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode
+
+- name: Apply unsupported security defaults as config elements
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: "{{ item.xpath }}"
+    element: "{{ item.element }}"
+    state: present
+  loop: "{{ security_default_config_elements | default([]) }}"
+  loop_control:
+    label: "{{ item.category }} - {{ item.name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode
+
+- name: Apply External Dynamic Lists
+  paloaltonetworks.panos.panos_edl:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item.name }}"
+    edl_type: "{{ item.edl_type }}"
+    source: "{{ item.source }}"
+    certificate_profile: "{{ item.certificate_profile | default(omit) }}"
+    description: "{{ item.description | default(omit) }}"
+    repeat: "{{ item.repeat | default(omit) }}"
+    repeat_at: "{{ item.repeat_at | default(omit) }}"
+    repeat_day_of_week: "{{ item.repeat_day_of_week | default(omit) }}"
+    repeat_day_of_month: "{{ item.repeat_day_of_month | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+    vsys: "{{ item.vsys | default('vsys1') }}"
+  loop: "{{ security_default_external_dynamic_lists | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode
+
+- name: Apply security profile groups
+  paloaltonetworks.panos.panos_pg:
+    provider: "{{ current_firewall_provider }}"
+    pg_name: "{{ item.pg_name }}"
+    virus: "{{ item.virus | default(omit) }}"
+    spyware: "{{ item.spyware | default(omit) }}"
+    vulnerability: "{{ item.vulnerability | default(omit) }}"
+    url_filtering: "{{ item.url_filtering | default(omit) }}"
+    file_blocking: "{{ item.file_blocking | default(omit) }}"
+    data_filtering: "{{ item.data_filtering | default(omit) }}"
+    wildfire: "{{ item.wildfire | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+    vsys: "{{ item.vsys | default('vsys1') }}"
+  loop: "{{ security_default_profile_groups | default([]) }}"
+  loop_control:
+    label: "{{ item.pg_name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode
+
+- name: Apply log forwarding profiles
+  paloaltonetworks.panos.panos_log_forwarding_profile:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    enhanced_logging: "{{ item.enhanced_logging | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+    vsys: "{{ item.vsys | default('vsys1') }}"
+  loop: "{{ security_default_log_forwarding_profiles | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode

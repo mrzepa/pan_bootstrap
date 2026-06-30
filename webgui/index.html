@@ -283,6 +283,11 @@
       accent-color: var(--accent);
     }
 
+    .checkline:has(input:disabled) {
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
     .firewall {
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -304,6 +309,22 @@
       align-items: center;
       gap: 8px;
       min-width: 0;
+    }
+
+    .item-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      background: #fff;
+    }
+
+    .item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
 
     .firewall-index {
@@ -357,6 +378,63 @@
 
     .save-message.success { color: #bbf7d0; }
     .save-message.error { color: #fecaca; }
+
+    .notice-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(15, 23, 42, 0.55);
+    }
+
+    .notice-dialog {
+      width: min(620px, 100%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .notice-dialog header {
+      min-height: 0;
+      padding: 16px 18px;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: #132238;
+    }
+
+    .notice-body {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .notice-body p {
+      margin: 0;
+      color: var(--ink);
+      line-height: 1.45;
+    }
+
+    .notice-list {
+      margin: 0;
+      padding-left: 20px;
+      color: #334155;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .notice-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 18px;
+      border-top: 1px solid var(--line);
+      background: var(--panel-soft);
+    }
 
     @media (max-width: 980px) {
       main { grid-template-columns: 1fr; padding: 16px; }
@@ -414,6 +492,124 @@
           <label>Firewall Username
             <input id="firewallUsername" value="admin">
           </label>
+          <label>Telemetry Region
+            <select id="telemetryRegion">
+              <option value="ca" selected>Canada</option>
+              <option value="americas">Americas</option>
+              <option value="eu">Europe</option>
+              <option value="uk">United Kingdom</option>
+              <option value="jp">Japan</option>
+              <option value="sg">Singapore</option>
+              <option value="au">Australia</option>
+              <option value="in">India</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <div>
+            <h2>System Services</h2>
+            <p>Set local firewall DNS, NTP, and timezone defaults for standalone bootstraps.</p>
+          </div>
+          <span class="pill">Standalone</span>
+        </div>
+        <div class="grid three">
+          <label>Timezone
+            <input id="systemTimezone" value="UTC">
+          </label>
+          <label>Primary DNS
+            <input id="dnsPrimary" value="1.1.1.1">
+          </label>
+          <label>Secondary DNS
+            <input id="dnsSecondary" value="1.0.0.1">
+          </label>
+          <label>Primary NTP
+            <input id="ntpPrimary" value="0.pool.org">
+          </label>
+          <label>Secondary NTP
+            <input id="ntpSecondary" value="1.pool.org">
+          </label>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <div>
+            <h2>Advanced Routing</h2>
+            <p>Enable PAN-OS advanced routing during bootstrap.</p>
+          </div>
+          <span class="pill">PAN-OS 11.2 tested</span>
+        </div>
+        <div class="switch-row">
+          <label class="checkline">
+            <input id="advancedRoutingEnabled" type="checkbox" checked>
+            Enable advanced routing
+          </label>
+          <span id="advancedRoutingMode" class="subtle">For new firewalls</span>
+        </div>
+        <div class="grid" style="margin-top: 12px;">
+          <label>Logical Router Name
+            <input id="logicalRouterName" value="default">
+          </label>
+        </div>
+        <p class="note" style="margin-top: 12px;">Use this only for new firewalls or devices where existing routing can be discarded. The API flow does not migrate virtual router configuration into logical router configuration; use the PAN-OS GUI conversion workflow first when existing routing must be preserved. Advanced routing is a local firewall lifecycle step even when Panorama onboarding is enabled; logical router configuration should come from Panorama templates in that case.</p>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <div>
+            <h2>Basic Network</h2>
+            <p>Configure standalone zones, interfaces, internet addressing, NAT, and default routing.</p>
+          </div>
+          <span class="pill">Standalone</span>
+        </div>
+        <p id="networkPanoramaNote" class="note hidden">Panorama is enabled, so standalone network configuration will be omitted from the generated YAML.</p>
+        <div id="networkFields" class="stack">
+          <div class="block-head" style="margin-bottom: 0;">
+            <div>
+              <h3>Zones</h3>
+              <p>Mark one or more zones as internet or internal so later policies can reference them.</p>
+            </div>
+            <button type="button" id="addZone">Add Zone</button>
+          </div>
+          <div id="zones" class="stack"></div>
+
+          <div class="block-head" style="margin-bottom: 0;">
+            <div>
+              <h3>Internet Interfaces</h3>
+              <p>Up to four internet uplinks are supported. Multiple uplinks can enable SD-WAN when licensed.</p>
+            </div>
+            <button type="button" id="addInternetInterface">Add Internet</button>
+          </div>
+          <div id="internetInterfaces" class="stack"></div>
+
+          <div id="sdwanFields" class="item-card hidden">
+            <div class="switch-row">
+              <label class="checkline">
+                <input id="sdwanEnabled" type="checkbox">
+                Enable SD-WAN when licensed
+              </label>
+              <span class="subtle">Requires SD WAN license</span>
+            </div>
+            <label>Traffic Distribution
+              <select id="sdwanTrafficDistribution">
+                <option value="ISP1-ISP2">ISP1 primary, ISP2 backup</option>
+                <option value="BEST-AVAILABLE">Best available load balancing</option>
+                <option value="ISP2-ISP1">ISP2 primary, ISP1 backup</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="block-head" style="margin-bottom: 0;">
+            <div>
+              <h3>Internal Interfaces</h3>
+              <p>Assign inside interfaces and their layer 3 addresses.</p>
+            </div>
+            <button type="button" id="addInternalInterface">Add Internal</button>
+          </div>
+          <div id="internalInterfaces" class="stack"></div>
         </div>
       </div>
 
@@ -523,6 +719,29 @@
     </aside>
   </main>
 
+  <div id="exportNotice" class="notice-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="exportNoticeTitle">
+    <div class="notice-dialog">
+      <header>
+        <div>
+          <h2 id="exportNoticeTitle">Review Bootstrap Policy Behavior</h2>
+          <p>This YAML creates a secure baseline, not a finished access policy.</p>
+        </div>
+      </header>
+      <div class="notice-body">
+        <p>The playbook builds a basic firewall configuration and intentionally blocks unmatched interzone traffic.</p>
+        <ul class="notice-list">
+          <li>Traffic between zones will not be permitted until explicit security policy allow rules are added.</li>
+          <li>Default block rules include known-bad IP lists, high-risk geo destinations, and unsanctioned applications.</li>
+          <li>Review, order, and tune security policy after bootstrap for the site-specific applications and zones.</li>
+        </ul>
+      </div>
+      <div class="notice-actions">
+        <button type="button" id="cancelExport">Review YAML</button>
+        <button type="button" class="primary" id="continueExport">Continue</button>
+      </div>
+    </div>
+  </div>
+
   <template id="firewallTemplate">
     <div class="firewall">
       <div class="firewall-head">
@@ -557,24 +776,161 @@
     </div>
   </template>
 
+  <template id="zoneTemplate">
+    <div class="item-card">
+      <div class="item-head">
+        <strong class="zoneTitle">Zone</strong>
+        <button type="button" class="danger removeZone">Remove</button>
+      </div>
+      <div class="grid three">
+        <label>Zone Name
+          <input data-field="name" placeholder="INTERNET">
+        </label>
+        <label>Role
+          <select data-field="type">
+            <option value="internet">Internet</option>
+            <option value="internal">Internal</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>Description
+          <input data-field="description" placeholder="Optional">
+        </label>
+      </div>
+    </div>
+  </template>
+
+  <template id="internetInterfaceTemplate">
+    <div class="item-card">
+      <div class="item-head">
+        <strong class="internetTitle">Internet Interface</strong>
+        <button type="button" class="danger removeInternetInterface">Remove</button>
+      </div>
+      <div class="grid three">
+        <label>Interface
+          <input data-field="name" placeholder="ethernet1/1">
+        </label>
+        <label>Zone
+          <select data-field="zone" data-zone-type="internet"></select>
+        </label>
+        <label>Address Type
+          <select data-field="address_type">
+            <option value="static">Static</option>
+            <option value="dhcp">DHCP</option>
+            <option value="pppoe">PPPoE</option>
+          </select>
+        </label>
+        <label data-mode="static">Firewall IP/CIDR
+          <input data-field="ip_address" placeholder="203.0.113.2/30">
+        </label>
+        <label data-mode="static">Default Gateway
+          <input data-field="default_gateway" placeholder="203.0.113.1">
+        </label>
+        <label data-mode="pppoe">PPPoE Username
+          <input data-field="pppoe_username">
+        </label>
+        <label data-mode="pppoe">PPPoE Password
+          <input data-field="pppoe_password" type="password">
+        </label>
+      </div>
+    </div>
+  </template>
+
+  <template id="internalInterfaceTemplate">
+    <div class="item-card">
+      <div class="item-head">
+        <strong class="internalTitle">Internal Interface</strong>
+        <button type="button" class="danger removeInternalInterface">Remove</button>
+      </div>
+      <div class="grid three">
+        <label>Interface
+          <input data-field="name" placeholder="ethernet1/2">
+        </label>
+        <label>Zone
+          <select data-field="zone" data-zone-type="internal"></select>
+        </label>
+        <label>Firewall IP/CIDR
+          <input data-field="ip_address" placeholder="192.168.1.1/24">
+        </label>
+      </div>
+    </div>
+  </template>
+
   <script>
     const state = {
       firewalls: [
         { hostname: "SITE-FW", staging_ip: "192.0.2.10", management_ip: "", serial: "", role: "standalone" }
+      ],
+      zones: [
+        { name: "INTERNET", type: "internet", description: "Internet-facing zone" },
+        { name: "INSIDE", type: "internal", description: "Internal trusted zone" }
+      ],
+      internetInterfaces: [
+        {
+          name: "ethernet1/1",
+          zone: "INTERNET",
+          address_type: "static",
+          ip_address: "203.0.113.2/30",
+          default_gateway: "203.0.113.1",
+          pppoe_username: "",
+          pppoe_password: ""
+        }
+      ],
+      internalInterfaces: [
+        { name: "ethernet1/2", zone: "INSIDE", ip_address: "192.168.1.1/24" }
       ]
     };
 
     const el = (id) => document.getElementById(id);
     const quote = (value) => `"${String(value || "").replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+    let pendingExportAction = null;
+
+    function syncAdvancedRoutingControls() {
+      const addPanorama = el("addToPanorama").checked;
+      el("logicalRouterName").disabled = addPanorama || !el("advancedRoutingEnabled").checked;
+    }
+
+    function guessPanosTimezone() {
+      const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const timezoneMap = {
+        "America/Toronto": "Canada/Eastern",
+        "America/Montreal": "Canada/Eastern",
+        "America/Vancouver": "Canada/Pacific",
+        "America/Edmonton": "Canada/Mountain",
+        "America/Winnipeg": "Canada/Central",
+        "America/Halifax": "Canada/Atlantic",
+        "America/St_Johns": "Canada/Newfoundland",
+        "America/New_York": "US/Eastern",
+        "America/Chicago": "US/Central",
+        "America/Denver": "US/Mountain",
+        "America/Los_Angeles": "US/Pacific",
+        "America/Anchorage": "US/Alaska",
+        "Pacific/Honolulu": "US/Hawaii"
+      };
+      el("systemTimezone").value = timezoneMap[browserTimezone] || browserTimezone;
+    }
 
     function buildYaml() {
+      syncAdvancedRoutingControls();
       const addPanorama = el("addToPanorama").checked;
       const isHa = el("deploymentMode").value === "ha_pair";
+      const advancedRoutingEnabled = el("advancedRoutingEnabled").checked;
       const lines = [
         "---",
         `panos_version: ${quote(el("panosVersion").value)}`,
         "",
         `firewall_username: ${quote(el("firewallUsername").value || "admin")}`,
+        `telemetry_region: ${quote(el("telemetryRegion").value || "ca")}`,
+        "",
+        `advanced_routing_enabled: ${advancedRoutingEnabled ? "true" : "false"}`,
+        `logical_router_name: ${quote(el("logicalRouterName").value || "default")}`,
+        "",
+        "system_settings:",
+        `  timezone: ${quote(el("systemTimezone").value || "UTC")}`,
+        `  dns_primary: ${quote(el("dnsPrimary").value || "1.1.1.1")}`,
+        `  dns_secondary: ${quote(el("dnsSecondary").value || "1.0.0.1")}`,
+        `  ntp_primary: ${quote(el("ntpPrimary").value || "0.pool.org")}`,
+        `  ntp_secondary: ${quote(el("ntpSecondary").value || "1.pool.org")}`,
         "",
         `add_to_panorama: ${addPanorama ? "true" : "false"}`,
         "panorama:",
@@ -604,6 +960,42 @@
         );
       }
 
+      if (!addPanorama) {
+        lines.push("network:");
+        lines.push("  zones:");
+        state.zones.forEach((zone) => {
+          lines.push(`    - name: ${quote(zone.name)}`);
+          lines.push(`      type: ${zone.type || "other"}`);
+          if (zone.description) {
+            lines.push(`      description: ${quote(zone.description)}`);
+          }
+        });
+        lines.push("  internet_interfaces:");
+        state.internetInterfaces.forEach((iface, index) => {
+          lines.push(`    - name: ${quote(iface.name)}`);
+          lines.push(`      zone: ${quote(iface.zone)}`);
+          lines.push(`      address_type: ${iface.address_type || "static"}`);
+          lines.push(`      tags: [${quote(`ISP${index + 1}`)}]`);
+          if (iface.address_type === "static") {
+            lines.push(`      ip_address: ${quote(iface.ip_address)}`);
+            lines.push(`      default_gateway: ${quote(iface.default_gateway)}`);
+          } else if (iface.address_type === "pppoe") {
+            lines.push(`      pppoe_username: ${quote(iface.pppoe_username)}`);
+            lines.push(`      pppoe_password: ${quote(iface.pppoe_password)}`);
+          }
+        });
+        lines.push("  internal_interfaces:");
+        state.internalInterfaces.forEach((iface) => {
+          lines.push(`    - name: ${quote(iface.name)}`);
+          lines.push(`      zone: ${quote(iface.zone)}`);
+          lines.push(`      ip_address: ${quote(iface.ip_address)}`);
+        });
+        lines.push("  sdwan:");
+        lines.push(`    enabled: ${el("sdwanEnabled").checked ? "true" : "false"}`);
+        lines.push(`    traffic_distribution: ${quote(el("sdwanTrafficDistribution").value)}`);
+        lines.push("");
+      }
+
       lines.push("firewalls:");
       state.firewalls.forEach((fw) => {
         lines.push(`  - hostname: ${quote(fw.hostname)}`);
@@ -622,10 +1014,127 @@
     function updateStatus() {
       const isHa = el("deploymentMode").value === "ha_pair";
       const addPanorama = el("addToPanorama").checked;
+      const internetCount = state.internetInterfaces.length;
+      el("advancedRoutingMode").textContent = addPanorama ? "Local step before Panorama" : "For new firewalls";
       el("firewallCount").textContent = `${state.firewalls.length} firewall${state.firewalls.length === 1 ? "" : "s"}`;
       el("panoramaMode").textContent = addPanorama ? "Panorama onboarding enabled" : "Local bootstrap only";
       el("yamlStatus").textContent = isHa && state.firewalls.length !== 2 ? "Review HA" : "Ready";
       el("yamlStatus").classList.toggle("green", !(isHa && state.firewalls.length !== 2));
+      el("networkFields").classList.toggle("hidden", addPanorama);
+      el("networkPanoramaNote").classList.toggle("hidden", !addPanorama);
+      el("sdwanFields").classList.toggle("hidden", internetCount < 2 || internetCount > 4);
+      el("addInternetInterface").disabled = internetCount >= 4;
+    }
+
+    function populateZoneSelect(select, zoneType, selectedValue) {
+      select.innerHTML = "";
+      state.zones
+        .filter((zone) => zone.type === zoneType)
+        .forEach((zone) => {
+          const option = document.createElement("option");
+          option.value = zone.name;
+          option.textContent = zone.name;
+          select.appendChild(option);
+        });
+      select.value = selectedValue || select.options[0]?.value || "";
+    }
+
+    function syncAddressFields(node, iface) {
+      node.querySelectorAll("[data-mode]").forEach((field) => {
+        field.classList.toggle("hidden", field.dataset.mode !== iface.address_type);
+      });
+    }
+
+    function renderZones() {
+      const list = el("zones");
+      list.innerHTML = "";
+      state.zones.forEach((zone, index) => {
+        const node = el("zoneTemplate").content.firstElementChild.cloneNode(true);
+        node.querySelector(".zoneTitle").textContent = zone.name || `Zone ${index + 1}`;
+        node.querySelectorAll("[data-field]").forEach((field) => {
+          field.value = zone[field.dataset.field] || "";
+          field.addEventListener("input", () => {
+            zone[field.dataset.field] = field.value;
+            node.querySelector(".zoneTitle").textContent = zone.name || `Zone ${index + 1}`;
+            renderInternetInterfaces();
+            renderInternalInterfaces();
+            buildYaml();
+          });
+          field.addEventListener("change", () => {
+            zone[field.dataset.field] = field.value;
+            renderInternetInterfaces();
+            renderInternalInterfaces();
+            buildYaml();
+          });
+        });
+        node.querySelector(".removeZone").addEventListener("click", () => {
+          state.zones.splice(index, 1);
+          renderZones();
+          renderInternetInterfaces();
+          renderInternalInterfaces();
+          buildYaml();
+        });
+        list.appendChild(node);
+      });
+    }
+
+    function renderInternetInterfaces() {
+      const list = el("internetInterfaces");
+      list.innerHTML = "";
+      state.internetInterfaces.forEach((iface, index) => {
+        const node = el("internetInterfaceTemplate").content.firstElementChild.cloneNode(true);
+        node.querySelector(".internetTitle").textContent = iface.name || `Internet ${index + 1}`;
+        node.querySelectorAll("[data-zone-type]").forEach((field) => populateZoneSelect(field, field.dataset.zoneType, iface.zone));
+        node.querySelectorAll("[data-field]").forEach((field) => {
+          field.value = iface[field.dataset.field] || "";
+          field.addEventListener("input", () => {
+            iface[field.dataset.field] = field.value;
+            node.querySelector(".internetTitle").textContent = iface.name || `Internet ${index + 1}`;
+            syncAddressFields(node, iface);
+            buildYaml();
+          });
+          field.addEventListener("change", () => {
+            iface[field.dataset.field] = field.value;
+            syncAddressFields(node, iface);
+            buildYaml();
+          });
+        });
+        syncAddressFields(node, iface);
+        node.querySelector(".removeInternetInterface").addEventListener("click", () => {
+          state.internetInterfaces.splice(index, 1);
+          renderInternetInterfaces();
+          buildYaml();
+        });
+        list.appendChild(node);
+      });
+    }
+
+    function renderInternalInterfaces() {
+      const list = el("internalInterfaces");
+      list.innerHTML = "";
+      state.internalInterfaces.forEach((iface, index) => {
+        const node = el("internalInterfaceTemplate").content.firstElementChild.cloneNode(true);
+        node.querySelector(".internalTitle").textContent = iface.name || `Internal ${index + 1}`;
+        node.querySelectorAll("[data-zone-type]").forEach((field) => populateZoneSelect(field, field.dataset.zoneType, iface.zone));
+        node.querySelectorAll("[data-field]").forEach((field) => {
+          field.value = iface[field.dataset.field] || "";
+          field.addEventListener("input", () => {
+            iface[field.dataset.field] = field.value;
+            node.querySelector(".internalTitle").textContent = iface.name || `Internal ${index + 1}`;
+            buildYaml();
+          });
+          field.addEventListener("change", () => {
+            iface[field.dataset.field] = field.value;
+            buildYaml();
+          });
+        });
+        node.querySelector(".removeInternalInterface").addEventListener("click", () => {
+          state.internalInterfaces.splice(index, 1);
+          renderInternalInterfaces();
+          buildYaml();
+        });
+        list.appendChild(node);
+      });
     }
 
     function renderFirewalls() {
@@ -663,6 +1172,7 @@
     function syncMode() {
       const isHa = el("deploymentMode").value === "ha_pair";
       const addPanorama = el("addToPanorama").checked;
+      syncAdvancedRoutingControls();
       el("modeNote").classList.toggle("hidden", !isHa);
       el("haBlock").classList.toggle("hidden", !isHa);
       el("haFields").classList.toggle("hidden", addPanorama);
@@ -681,18 +1191,19 @@
       renderFirewalls();
     }
 
-    document.querySelectorAll("input, select").forEach((input) => input.addEventListener("input", buildYaml));
-    el("deploymentMode").addEventListener("change", syncMode);
-    el("addToPanorama").addEventListener("change", () => {
-      el("panoramaFields").classList.toggle("hidden", !el("addToPanorama").checked);
-      syncMode();
-    });
-    el("addFirewall").addEventListener("click", () => {
-      const role = el("deploymentMode").value === "ha_pair" && state.firewalls.length > 0 ? "secondary" : "standalone";
-      state.firewalls.push({ hostname: "", staging_ip: "", management_ip: "", serial: "", role });
-      renderFirewalls();
-    });
-    el("downloadYaml").addEventListener("click", () => {
+    function showExportNotice(action) {
+      pendingExportAction = action;
+      el("continueExport").textContent = action === "save" ? "Save YAML" : "Download YAML";
+      el("exportNotice").classList.remove("hidden");
+      el("continueExport").focus();
+    }
+
+    function hideExportNotice() {
+      pendingExportAction = null;
+      el("exportNotice").classList.add("hidden");
+    }
+
+    function downloadYamlFile() {
       buildYaml();
       const blob = new Blob([el("yamlOutput").value], { type: "text/yaml" });
       const url = URL.createObjectURL(blob);
@@ -701,8 +1212,9 @@
       link.download = "firewalls.yml";
       link.click();
       URL.revokeObjectURL(url);
-    });
-    el("saveYaml").addEventListener("click", async () => {
+    }
+
+    async function saveYamlFile() {
       buildYaml();
       const message = el("saveMessage");
       message.className = "save-message";
@@ -723,8 +1235,73 @@
         message.className = "save-message error";
         message.textContent = "Start with python3 webgui_server.py to enable saving.";
       }
+    }
+
+    document.querySelectorAll("input, select").forEach((input) => input.addEventListener("input", buildYaml));
+    el("deploymentMode").addEventListener("change", syncMode);
+    el("addToPanorama").addEventListener("change", () => {
+      el("panoramaFields").classList.toggle("hidden", !el("addToPanorama").checked);
+      syncMode();
+    });
+    el("addFirewall").addEventListener("click", () => {
+      const role = el("deploymentMode").value === "ha_pair" && state.firewalls.length > 0 ? "secondary" : "standalone";
+      state.firewalls.push({ hostname: "", staging_ip: "", management_ip: "", serial: "", role });
+      renderFirewalls();
+    });
+    el("addZone").addEventListener("click", () => {
+      state.zones.push({ name: "", type: "other", description: "" });
+      renderZones();
+      buildYaml();
+    });
+    el("addInternetInterface").addEventListener("click", () => {
+      if (state.internetInterfaces.length >= 4) return;
+      state.internetInterfaces.push({
+        name: "",
+        zone: state.zones.find((zone) => zone.type === "internet")?.name || "",
+        address_type: "static",
+        ip_address: "",
+        default_gateway: "",
+        pppoe_username: "",
+        pppoe_password: ""
+      });
+      renderInternetInterfaces();
+      buildYaml();
+    });
+    el("addInternalInterface").addEventListener("click", () => {
+      state.internalInterfaces.push({
+        name: "",
+        zone: state.zones.find((zone) => zone.type === "internal")?.name || "",
+        ip_address: ""
+      });
+      renderInternalInterfaces();
+      buildYaml();
+    });
+    el("downloadYaml").addEventListener("click", () => {
+      showExportNotice("download");
+    });
+    el("saveYaml").addEventListener("click", async () => {
+      showExportNotice("save");
+    });
+    el("cancelExport").addEventListener("click", hideExportNotice);
+    el("continueExport").addEventListener("click", async () => {
+      const action = pendingExportAction;
+      hideExportNotice();
+      if (action === "save") {
+        await saveYamlFile();
+      } else if (action === "download") {
+        downloadYamlFile();
+      }
+    });
+    el("exportNotice").addEventListener("click", (event) => {
+      if (event.target === el("exportNotice")) {
+        hideExportNotice();
+      }
     });
 
+    guessPanosTimezone();
+    renderZones();
+    renderInternetInterfaces();
+    renderInternalInterfaces();
     syncMode();
   </script>
 </body>

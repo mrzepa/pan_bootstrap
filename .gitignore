@@ -13,6 +13,9 @@ htmlcov/
 venv/
 env/
 
+tools/*
+!tools/export_security_defaults.py
+
 # Ansible
 *.retry
 .ansible/

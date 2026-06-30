@@ -1,2 +1,3 @@
 ---
-telemetry_region: Americas
+palo_alto_bootstrap_telemetry_region: ca
+palo_alto_bootstrap_advanced_routing_enabled: true

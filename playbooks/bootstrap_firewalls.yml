@@ -23,8 +23,13 @@
         bootstrap_firewalls: "{{ bootstrap_input.firewalls | default([]) }}"
         bootstrap_deployment_mode: "{{ bootstrap_input.deployment_mode | default('standalone') }}"
         bootstrap_add_to_panorama: "{{ bootstrap_input.add_to_panorama | default(false) | bool }}"
+        bootstrap_advanced_routing_enabled: "{{ bootstrap_input.advanced_routing_enabled | default(advanced_routing_enabled | default(true)) | bool }}"
+        bootstrap_logical_router_name: "{{ bootstrap_input.logical_router_name | default(logical_router_name | default('default')) }}"
+        bootstrap_network: "{{ bootstrap_input.network | default({}) }}"
+        bootstrap_system_settings: "{{ bootstrap_input.system_settings | default({}) }}"
         bootstrap_panos_version: "{{ bootstrap_input.panos_version | default(panos_version | default('')) }}"
         bootstrap_firewall_username: "{{ bootstrap_input.firewall_username | default(firewall_username_default) }}"
+        bootstrap_telemetry_region: "{{ bootstrap_input.telemetry_region | default(telemetry_region | default('ca')) }}"
         bootstrap_firewall_password: "{{ firewall_password_prompt }}"
         bootstrap_panorama:
           host: "{{ input_panorama.host | default(panorama_host) }}"
@@ -52,6 +57,16 @@
           - bootstrap_firewall_username | string | trim | length > 0
           - bootstrap_firewall_password | string | trim | length > 0
         fail_msg: "Missing required firewall bootstrap inputs. See vars/firewalls.example.yml."
+
+    - name: Validate logical router inputs
+      ansible.builtin.assert:
+        that:
+          - bootstrap_logical_router_name | string | trim | length > 0
+          - bootstrap_logical_router_name | regex_search("'") is none
+        fail_msg: "logical_router_name must not be empty and cannot contain a single quote."
+      when:
+        - bootstrap_advanced_routing_enabled
+        - not bootstrap_add_to_panorama
 
     - name: Validate each firewall entry
       ansible.builtin.assert:
@@ -83,6 +98,25 @@
         fail_msg: "deployment_mode ha_pair must contain exactly two firewalls: one primary and one secondary."
       when: bootstrap_deployment_mode == 'ha_pair'
 
+    - name: Validate standalone network inputs
+      vars:
+        bootstrap_network_zones: "{{ bootstrap_network.zones | default([]) }}"
+        bootstrap_network_internet_interfaces: "{{ bootstrap_network.internet_interfaces | default([]) }}"
+        bootstrap_network_internal_interfaces: "{{ bootstrap_network.internal_interfaces | default([]) }}"
+      ansible.builtin.assert:
+        that:
+          - bootstrap_network_zones | selectattr('type', 'equalto', 'internet') | list | length >= 1
+          - bootstrap_network_zones | selectattr('type', 'equalto', 'internal') | list | length >= 1
+          - bootstrap_network_internet_interfaces | length >= 1
+          - bootstrap_network_internal_interfaces | length >= 1
+          - bootstrap_network_internet_interfaces | length <= 4
+        fail_msg: >-
+          Standalone network config requires at least one internet zone, one internal zone,
+          one internet interface, and one internal interface. Internet interfaces are limited to four.
+      when:
+        - not bootstrap_add_to_panorama
+        - bootstrap_network | length > 0
+
     - name: Validate local HA inputs when Panorama is not managing HA
       ansible.builtin.assert:
         that:
@@ -91,7 +125,9 @@
           - bootstrap_ha.group_id | string | trim | length > 0
           - bootstrap_ha.group_id | int > 0
           - bootstrap_ha.netmask | string | trim | length > 0
-        fail_msg: "Local HA bootstrap requires ha.ha1_interface, ha.ha2_interface, and ha.group_id when deployment_mode is ha_pair and add_to_panorama is false."
+        fail_msg: >-
+          Local HA bootstrap requires ha.ha1_interface, ha.ha2_interface, and ha.group_id
+          when deployment_mode is ha_pair and add_to_panorama is false.
       when:
         - bootstrap_deployment_mode == 'ha_pair'
         - not bootstrap_add_to_panorama
@@ -136,6 +172,20 @@
         firewall_info: "{{ item }}"
         deployment_mode: "{{ bootstrap_deployment_mode }}"
         add_to_panorama: "{{ bootstrap_add_to_panorama }}"
+        palo_alto_bootstrap_advanced_routing_enabled: "{{ bootstrap_advanced_routing_enabled }}"
+        palo_alto_bootstrap_telemetry_region: "{{ bootstrap_telemetry_region }}"
+        palo_alto_standalone_config_logical_router_name: "{{ bootstrap_logical_router_name }}"
+        palo_alto_standalone_config_network: "{{ bootstrap_network }}"
+        palo_alto_standalone_config_system_dns_primary: >-
+          {{ bootstrap_system_settings.dns_primary | default('1.1.1.1') }}
+        palo_alto_standalone_config_system_dns_secondary: >-
+          {{ bootstrap_system_settings.dns_secondary | default('1.0.0.1') }}
+        palo_alto_standalone_config_system_ntp_primary: >-
+          {{ bootstrap_system_settings.ntp_primary | default('0.pool.org') }}
+        palo_alto_standalone_config_system_ntp_secondary: >-
+          {{ bootstrap_system_settings.ntp_secondary | default('1.pool.org') }}
+        palo_alto_standalone_config_system_timezone: >-
+          {{ bootstrap_system_settings.timezone | default('UTC') }}
         panos_version: "{{ bootstrap_panos_version }}"
         firewall_username: "{{ bootstrap_firewall_username }}"
         firewall_password: "{{ bootstrap_firewall_password }}"
@@ -190,7 +240,7 @@
         - ansible_check_mode
         - not (firewall_reachable | default(false) | bool)
 
-    - name: Apply standalone Palo Alto baseline
+    - name: Apply Palo Alto bootstrap lifecycle
       ansible.builtin.include_role:
         name: palo_alto_bootstrap
       when:
@@ -231,12 +281,12 @@
           template_stack: "{{ input_panorama.template_stack | default('') }}"
       when: bootstrap_input.add_to_panorama | default(false) | bool
 
-    - name: Run Panorama onboarding
+    - name: Run Panorama configuration
       ansible.builtin.include_role:
-        name: panorama_onboard
+        name: palo_alto_panorama_config
       vars:
-        panorama_firewalls: "{{ bootstrap_input.firewalls | default([]) }}"
-        panorama_settings: "{{ panorama_onboarding_settings }}"
+        palo_alto_panorama_config_firewalls: "{{ bootstrap_input.firewalls | default([]) }}"
+        palo_alto_panorama_config_settings: "{{ panorama_onboarding_settings }}"
       when: bootstrap_input.add_to_panorama | default(false) | bool
 
     - name: Show bootstrap completion summary

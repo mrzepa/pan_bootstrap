@@ -1,0 +1,235 @@
+---
+- name: Build SD-WAN link tag entries
+  ansible.builtin.set_fact:
+    palo_alto_sdwan_link_tag_entries: >-
+      {{ (palo_alto_sdwan_link_tag_entries | default([])) + [{'@name': 'ISP' ~ ansible_loop.index}] }}
+  loop: "{{ palo_alto_sdwan_internet_interfaces }}"
+  loop_control:
+    extended: true
+    label: "ISP{{ ansible_loop.index }}"
+
+- name: Check SD-WAN license
+  paloaltonetworks.panos.panos_op:
+    provider: "{{ current_firewall_provider }}"
+    cmd: request license info
+  register: palo_alto_sdwan_license_info
+
+- name: Require SD-WAN license
+  ansible.builtin.assert:
+    that:
+      - "'Feature: SD WAN' in (palo_alto_sdwan_license_info.stdout | default(''))"
+    fail_msg: "SD-WAN was requested, but the firewall does not report a Feature: SD WAN license."
+
+- name: Create SD-WAN ISP tags
+  paloaltonetworks.panos.panos_tag_object:
+    provider: "{{ current_firewall_provider }}"
+    name: "ISP{{ ansible_loop.index }}"
+    color: azure blue
+    comments: "SD-WAN ISP{{ ansible_loop.index }} link tag"
+    vsys: vsys1
+    state: present
+  loop: "{{ palo_alto_sdwan_internet_interfaces }}"
+  loop_control:
+    extended: true
+    label: "ISP{{ ansible_loop.index }}"
+  when: not ansible_check_mode
+
+- name: Create SD-WAN policy tag
+  paloaltonetworks.panos.panos_tag_object:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ palo_alto_sdwan_rule_tag }}"
+    color: azure blue
+    comments: "Groups bootstrap-generated SD-WAN policy rules."
+    vsys: vsys1
+    state: present
+  when: not ansible_check_mode
+
+- name: Create SD-WAN interface profiles
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Network/SDWANInterfaceProfiles
+    name: "ISP{{ ansible_loop.index }}"
+    spec:
+      link-tag: "ISP{{ ansible_loop.index }}"
+      link-type: Ethernet
+      path-monitoring: "{{ palo_alto_sdwan_profile_path_monitoring }}"
+      probe-frequency: "{{ palo_alto_sdwan_profile_probe_frequency }}"
+      failback-hold-time: "{{ palo_alto_sdwan_profile_failback_hold_time }}"
+  loop: "{{ palo_alto_sdwan_internet_interfaces }}"
+  loop_control:
+    extended: true
+    label: "ISP{{ ansible_loop.index }}"
+  when: not ansible_check_mode
+
+- name: Enable SD-WAN link settings on internet interfaces
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
+    element: |
+      <entry name="{{ item.name }}">
+        <layer3>
+          <sdwan-link-settings>
+            <upstream-nat>
+              <enable>no</enable>
+              <static-ip/>
+            </upstream-nat>
+            <enable>yes</enable>
+            <sdwan-interface-profile>ISP{{ ansible_loop.index }}</sdwan-interface-profile>
+            <ipv6-enable>no</ipv6-enable>
+          </sdwan-link-settings>
+        </layer3>
+      </entry>
+    state: present
+  loop: "{{ palo_alto_sdwan_internet_interfaces }}"
+  loop_control:
+    extended: true
+    label: "{{ item.name }}"
+  when: not ansible_check_mode
+
+- name: Add SD-WAN gateway to static internet interface addresses
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
+    element: |
+      <entry name="{{ item.name }}">
+        <layer3>
+          <ip>
+            <entry name="{{ item.ip_address }}">
+              <sdwan-gateway>{{ item.default_gateway }}</sdwan-gateway>
+            </entry>
+          </ip>
+        </layer3>
+      </entry>
+    state: present
+  loop: "{{ palo_alto_sdwan_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.address_type | default('static') == 'static'
+    - item.default_gateway is defined
+    - item.default_gateway | string | trim | length > 0
+    - not ansible_check_mode
+
+- name: Create SD-WAN interface
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface"
+    element: |
+      <sdwan>
+        <units>
+          <entry name="{{ palo_alto_sdwan_interface_name }}">
+            <interface>
+      {% for sdwan_interface in palo_alto_sdwan_internet_interfaces %}
+              <member>{{ sdwan_interface.name }}</member>
+      {% endfor %}
+            </interface>
+          </entry>
+        </units>
+      </sdwan>
+    state: present
+  when: not ansible_check_mode
+
+- name: Create SD-WAN default route in logical router
+  paloaltonetworks.panos.panos_logical_router_vrf_static_route:
+    provider: "{{ current_firewall_provider }}"
+    logical_router: "{{ palo_alto_standalone_config_logical_router_name }}"
+    vrf_name: default
+    name: default
+    destination: 0.0.0.0/0
+    interface: "{{ palo_alto_sdwan_interface_name }}"
+    metric: 5
+    state: present
+  when:
+    - palo_alto_bootstrap_advanced_routing_enabled | bool
+    - not ansible_check_mode
+
+- name: Create SD-WAN default route in virtual router
+  paloaltonetworks.panos.panos_static_route:
+    provider: "{{ current_firewall_provider }}"
+    virtual_router: default
+    name: default
+    destination: 0.0.0.0/0
+    nexthop_type: none
+    interface: "{{ palo_alto_sdwan_interface_name }}"
+    metric: 5
+    state: present
+  when:
+    - not palo_alto_bootstrap_advanced_routing_enabled | bool
+    - not ansible_check_mode
+
+- name: Create primary backup SD-WAN traffic distribution profile
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Objects/SDWANTrafficDistributionProfiles
+    name: "{{ item.name }}"
+    spec:
+      link-tags:
+        entry: "{{ item.tags }}"
+      traffic-distribution: Top Down Priority
+  loop:
+    - name: ISP1-ISP2
+      tags:
+        - "@name": ISP1
+        - "@name": ISP2
+    - name: ISP2-ISP1
+      tags:
+        - "@name": ISP2
+        - "@name": ISP1
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - palo_alto_sdwan_internet_interfaces | length >= 2
+    - not ansible_check_mode
+
+- name: Create best available SD-WAN traffic distribution profile
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Objects/SDWANTrafficDistributionProfiles
+    name: BEST-AVAILABLE
+    spec:
+      link-tags:
+        entry: "{{ palo_alto_sdwan_link_tag_entries }}"
+      traffic-distribution: Best Available Path
+  when: not ansible_check_mode
+
+- name: Create SD-WAN policy rule
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Policies/SDWANRules
+    name: "{{ palo_alto_sdwan_rule_name }}"
+    spec:
+      description: "Selects the default SD-WAN traffic distribution profile for internal-to-internet traffic."
+      tag:
+        member:
+          - "{{ palo_alto_sdwan_rule_tag }}"
+      action:
+        traffic-distribution-profile: "{{ palo_alto_sdwan_distribution_profile }}"
+      from:
+        member: "{{ palo_alto_sdwan_internal_zones }}"
+      to:
+        member: "{{ palo_alto_sdwan_internet_zones }}"
+      source:
+        member:
+          - any
+      destination:
+        member:
+          - any
+      source-user:
+        member:
+          - any
+      application:
+        member:
+          - any
+      service:
+        member:
+          - any
+      path-quality-profile: "{{ palo_alto_sdwan_path_quality_profile }}"
+  when: not ansible_check_mode

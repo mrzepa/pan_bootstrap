@@ -1,27 +1,27 @@
 ---
 - name: Set HA local facts
   ansible.builtin.set_fact:
-    ha_local_role: "{{ firewall_info.role }}"
-    ha_local_ha1_ip: >-
+    palo_alto_ha_local_role: "{{ firewall_info.role }}"
+    palo_alto_ha_local_ha1_ip: >-
       {{
         ha_settings.primary_ha1_ip
         if firewall_info.role == 'primary'
         else ha_settings.secondary_ha1_ip
       }}
-    ha_peer_ha1_ip: >-
+    palo_alto_ha_peer_ha1_ip: >-
       {{
         ha_settings.secondary_ha1_ip
         if firewall_info.role == 'primary'
         else ha_settings.primary_ha1_ip
       }}
-    ha_local_priority: >-
+    palo_alto_ha_local_priority: >-
       {{
         ha_settings.primary_priority
         if firewall_info.role == 'primary'
         else ha_settings.secondary_priority
       }}
-    ha_local_backup_ip: "{{ firewall_info.management_ip | default(firewall_info.staging_ip) }}"
-    ha_peer_backup_ip: "{{ ha_peer_info.management_ip | default(ha_peer_info.staging_ip) }}"
+    palo_alto_ha_local_backup_ip: "{{ firewall_info.management_ip | default(firewall_info.staging_ip) }}"
+    palo_alto_ha_peer_backup_ip: "{{ ha_peer_info.management_ip | default(ha_peer_info.staging_ip) }}"
   tags:
     - ha
 
@@ -48,11 +48,11 @@
     ha_group_id: "{{ ha_settings.group_id | int }}"
     ha_mode: active-passive
     ha_config_sync: true
-    ha_peer_ip: "{{ ha_peer_ha1_ip }}"
-    ha_peer_ip_backup: "{{ ha_peer_backup_ip }}"
+    ha_peer_ip: "{{ palo_alto_ha_peer_ha1_ip }}"
+    ha_peer_ip_backup: "{{ palo_alto_ha_peer_backup_ip }}"
     ha1_port: "{{ ha_settings.ha1_interface }}"
-    ha1_ip_address: "{{ ha_local_ha1_ip }}"
-    ha1_netmask: "{{ ha_settings.netmask | default(ha_default_netmask) }}"
+    ha1_ip_address: "{{ palo_alto_ha_local_ha1_ip }}"
+    ha1_netmask: "{{ ha_settings.netmask | default(palo_alto_ha_default_netmask) }}"
     ha2_port: "{{ ha_settings.ha2_interface }}"
   when: not ansible_check_mode
   tags:
@@ -64,8 +64,8 @@
     cmd: set
     xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/group/election-option"
     element: >-
-      <device-priority>{{ ha_local_priority }}</device-priority>
-      <preemptive>{{ 'yes' if ha_settings.preemptive | default(ha_preemptive) | bool else 'no' }}</preemptive>
+      <device-priority>{{ palo_alto_ha_local_priority }}</device-priority>
+      <preemptive>{{ 'yes' if ha_settings.preemptive | default(palo_alto_ha_preemptive) | bool else 'no' }}</preemptive>
   when: not ansible_check_mode
   tags:
     - ha
@@ -74,7 +74,7 @@
   paloaltonetworks.panos.panos_op:
     provider: "{{ current_firewall_provider }}"
     cmd: show config list changes
-  register: ha_pending_changes
+  register: palo_alto_ha_pending_changes
   tags:
     - ha
 
@@ -83,9 +83,9 @@
     provider: "{{ current_firewall_provider }}"
     sync: true
   when:
-    - ha_pending_changes.stdout is defined
-    - ha_pending_changes.stdout | string | trim | length > 0
-    - "'No changes' not in (ha_pending_changes.stdout | default(''))"
+    - palo_alto_ha_pending_changes.stdout is defined
+    - palo_alto_ha_pending_changes.stdout | string | trim | length > 0
+    - "'No changes' not in (palo_alto_ha_pending_changes.stdout | default(''))"
     - not ansible_check_mode
   tags:
     - ha

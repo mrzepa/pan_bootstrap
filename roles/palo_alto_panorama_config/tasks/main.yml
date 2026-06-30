@@ -1,0 +1,170 @@
+---
+- name: Set Panorama provider
+  ansible.builtin.set_fact:
+    palo_alto_panorama_config_provider:
+      ip_address: "{{ palo_alto_panorama_config_settings.host }}"
+      api_key: "{{ palo_alto_panorama_config_settings.api_key }}"
+
+- name: Add firewalls to Panorama managed devices
+  panorama_add_fw:
+    pano_ip: "{{ palo_alto_panorama_config_settings.host }}"
+    pano_api_key: "{{ palo_alto_panorama_config_settings.api_key }}"
+    fw_serial: "{{ item.serial }}"
+  loop: "{{ palo_alto_panorama_config_firewalls }}"
+  loop_control:
+    label: "{{ item.hostname }} - {{ item.serial }}"
+  register: palo_alto_panorama_config_add_results
+  when:
+    - item.serial is defined
+    - item.serial | string | trim | length > 0
+
+- name: Query device group membership
+  vars:
+    palo_alto_panorama_config_xpath: >-
+      /config/devices/entry[@name='localhost.localdomain']/device-group/entry[@name='{{
+      palo_alto_panorama_config_settings.device_group }}']/devices
+    palo_alto_panorama_config_query_url: >-
+      https://{{ palo_alto_panorama_config_settings.host }}/api/?type=config&action=get&xpath={{
+      palo_alto_panorama_config_xpath | urlencode }}&key={{ palo_alto_panorama_config_settings.api_key }}
+  ansible.builtin.uri:
+    url: "{{ palo_alto_panorama_config_query_url }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ palo_alto_panorama_config_firewalls }}"
+  loop_control:
+    label: "{{ item.hostname }} - {{ item.serial }} in {{ palo_alto_panorama_config_settings.device_group }}"
+  register: palo_alto_panorama_config_device_group_membership
+  changed_when: false
+  when:
+    - item.serial is defined
+    - item.serial | string | trim | length > 0
+
+- name: Add firewalls to device group
+  vars:
+    palo_alto_panorama_config_xpath: >-
+      /config/devices/entry[@name='localhost.localdomain']/device-group/entry[@name='{{
+      palo_alto_panorama_config_settings.device_group }}']/devices
+    palo_alto_panorama_config_element: "<entry name='{{ item.item.serial }}'/>"
+    palo_alto_panorama_config_set_url: >-
+      https://{{ palo_alto_panorama_config_settings.host }}/api/?type=config&action=set&xpath={{
+      palo_alto_panorama_config_xpath | urlencode }}&element={{ palo_alto_panorama_config_element | urlencode }}&key={{
+      palo_alto_panorama_config_settings.api_key }}
+  ansible.builtin.uri:
+    url: "{{ palo_alto_panorama_config_set_url }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ palo_alto_panorama_config_device_group_membership.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.hostname }} - {{ item.item.serial }} -> {{ palo_alto_panorama_config_settings.device_group }}"
+  register: palo_alto_panorama_config_add_device_group_results
+  changed_when: true
+  when:
+    - item.item.serial is defined
+    - item.content is defined
+    - item.item.serial not in item.content
+
+- name: Query template stack membership
+  vars:
+    palo_alto_panorama_config_xpath: >-
+      /config/devices/entry[@name='localhost.localdomain']/template-stack/entry[@name='{{
+      palo_alto_panorama_config_settings.template_stack }}']/devices
+    palo_alto_panorama_config_query_url: >-
+      https://{{ palo_alto_panorama_config_settings.host }}/api/?type=config&action=get&xpath={{
+      palo_alto_panorama_config_xpath | urlencode }}&key={{ palo_alto_panorama_config_settings.api_key }}
+  ansible.builtin.uri:
+    url: "{{ palo_alto_panorama_config_query_url }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ palo_alto_panorama_config_firewalls }}"
+  loop_control:
+    label: "{{ item.hostname }} - {{ item.serial }} in {{ palo_alto_panorama_config_settings.template_stack }}"
+  register: palo_alto_panorama_config_template_stack_membership
+  changed_when: false
+  when:
+    - item.serial is defined
+    - item.serial | string | trim | length > 0
+
+- name: Add firewalls to template stack
+  vars:
+    palo_alto_panorama_config_xpath: >-
+      /config/devices/entry[@name='localhost.localdomain']/template-stack/entry[@name='{{
+      palo_alto_panorama_config_settings.template_stack }}']/devices
+    palo_alto_panorama_config_element: "<entry name='{{ item.item.serial }}'/>"
+    palo_alto_panorama_config_set_url: >-
+      https://{{ palo_alto_panorama_config_settings.host }}/api/?type=config&action=set&xpath={{
+      palo_alto_panorama_config_xpath | urlencode }}&element={{ palo_alto_panorama_config_element | urlencode }}&key={{
+      palo_alto_panorama_config_settings.api_key }}
+  ansible.builtin.uri:
+    url: "{{ palo_alto_panorama_config_set_url }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ palo_alto_panorama_config_template_stack_membership.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.hostname }} - {{ item.item.serial }} -> {{ palo_alto_panorama_config_settings.template_stack }}"
+  register: palo_alto_panorama_config_add_template_stack_results
+  changed_when: true
+  when:
+    - item.item.serial is defined
+    - item.content is defined
+    - item.item.serial not in item.content
+
+- name: Commit Panorama onboarding changes
+  vars:
+    palo_alto_panorama_config_managed_devices_changed: >-
+      {{
+        palo_alto_panorama_config_add_results is defined
+        and (
+          palo_alto_panorama_config_add_results.results
+          | default([])
+          | selectattr('changed', 'defined')
+          | selectattr('changed')
+          | list
+          | length
+        ) > 0
+      }}
+    palo_alto_panorama_config_device_group_changed: >-
+      {{
+        palo_alto_panorama_config_add_device_group_results is defined
+        and (
+          palo_alto_panorama_config_add_device_group_results.results
+          | default([])
+          | selectattr('changed', 'defined')
+          | selectattr('changed')
+          | list
+          | length
+        ) > 0
+      }}
+    palo_alto_panorama_config_template_stack_changed: >-
+      {{
+        palo_alto_panorama_config_add_template_stack_results is defined
+        and (
+          palo_alto_panorama_config_add_template_stack_results.results
+          | default([])
+          | selectattr('changed', 'defined')
+          | selectattr('changed')
+          | list
+          | length
+        ) > 0
+      }}
+  paloaltonetworks.panos.panos_commit_panorama:
+    provider: "{{ palo_alto_panorama_config_provider }}"
+    description: "Ansible change for firewall onboarding"
+    sync: true
+  when: >
+    not ansible_check_mode and (
+      palo_alto_panorama_config_managed_devices_changed
+      or palo_alto_panorama_config_device_group_changed
+      or palo_alto_panorama_config_template_stack_changed
+    )

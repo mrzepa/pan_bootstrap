@@ -1,0 +1,207 @@
+---
+- name: Set standalone network facts
+  ansible.builtin.set_fact:
+    palo_alto_standalone_config_zones: "{{ palo_alto_standalone_config_network.zones | default([]) }}"
+    palo_alto_standalone_config_internet_interfaces: >-
+      {{ palo_alto_standalone_config_network.internet_interfaces | default([]) }}
+    palo_alto_standalone_config_internal_interfaces: >-
+      {{ palo_alto_standalone_config_network.internal_interfaces | default([]) }}
+    palo_alto_standalone_config_sdwan_enabled: >-
+      {{ palo_alto_standalone_config_network.sdwan.enabled | default(false) | bool }}
+
+- name: Reset standalone zone profile assignments
+  ansible.builtin.set_fact:
+    palo_alto_standalone_config_zone_profile_assignments: []
+
+- name: Build standalone zone profile assignments
+  ansible.builtin.set_fact:
+    palo_alto_standalone_config_zone_profile_assignments: >-
+      {{ palo_alto_standalone_config_zone_profile_assignments
+      + [{'name': item.name, 'profile': palo_alto_standalone_config_internet_zone_protection_profile
+      if item.type | default('other') == 'internet'
+      else palo_alto_standalone_config_internal_zone_protection_profile}] }}
+  loop: "{{ palo_alto_standalone_config_zones }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create PING interface management profile
+  paloaltonetworks.panos.panos_management_profile:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ palo_alto_standalone_config_interface_management_profile }}"
+    ping: true
+    state: present
+    vsys: vsys1
+  when: not ansible_check_mode
+
+- name: Configure internet interfaces
+  paloaltonetworks.panos.panos_interface:
+    provider: "{{ current_firewall_provider }}"
+    if_name: "{{ item.name }}"
+    mode: layer3
+    zone_name: "{{ item.zone }}"
+    lr_name: >-
+      {{ palo_alto_standalone_config_logical_router_name
+      if palo_alto_bootstrap_advanced_routing_enabled | bool else omit }}
+    vr_name: "{{ 'default' if not palo_alto_bootstrap_advanced_routing_enabled | bool else omit }}"
+    ip: "{{ [item.ip_address] if item.address_type | default('static') == 'static' else omit }}"
+    enable_dhcp: "{{ item.address_type | default('static') == 'dhcp' }}"
+    management_profile: "{{ palo_alto_standalone_config_interface_management_profile }}"
+    create_default_route: false
+    comment: "{{ item.description | default('Internet uplink configured by bootstrap') }}"
+    vsys: vsys1
+  loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }} -> {{ item.zone }}"
+  when:
+    - item.address_type | default('static') in ['static', 'dhcp', 'pppoe']
+    - not ansible_check_mode
+
+- name: Configure internal interfaces
+  paloaltonetworks.panos.panos_interface:
+    provider: "{{ current_firewall_provider }}"
+    if_name: "{{ item.name }}"
+    mode: layer3
+    zone_name: "{{ item.zone }}"
+    lr_name: >-
+      {{ palo_alto_standalone_config_logical_router_name
+      if palo_alto_bootstrap_advanced_routing_enabled | bool else omit }}
+    vr_name: "{{ 'default' if not palo_alto_bootstrap_advanced_routing_enabled | bool else omit }}"
+    ip:
+      - "{{ item.ip_address }}"
+    enable_dhcp: false
+    management_profile: "{{ palo_alto_standalone_config_interface_management_profile }}"
+    comment: "{{ item.description | default('Internal interface configured by bootstrap') }}"
+    vsys: vsys1
+  loop: "{{ palo_alto_standalone_config_internal_interfaces }}"
+  loop_control:
+    label: "{{ item.name }} -> {{ item.zone }}"
+  when: not ansible_check_mode
+
+- name: Configure PPPoE internet interfaces
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
+    element: |
+      <entry name="{{ item.name }}">
+        <layer3>
+          <pppoe>
+            <username>{{ item.pppoe_username }}</username>
+            <password>{{ item.pppoe_password }}</password>
+          </pppoe>
+        </layer3>
+      </entry>
+    state: present
+  loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+  when:
+    - item.address_type | default('static') == 'pppoe'
+    - not ansible_check_mode
+
+- name: Configure standalone protection and LLDP profiles
+  ansible.builtin.include_tasks: profile_baseline.yml
+  when: not ansible_check_mode
+
+- name: Configure standalone SD-WAN
+  ansible.builtin.include_role:
+    name: palo_alto_sdwan
+  vars:
+    palo_alto_sdwan_enabled: "{{ palo_alto_standalone_config_sdwan_enabled }}"
+    palo_alto_sdwan_internet_interfaces: "{{ palo_alto_standalone_config_internet_interfaces }}"
+    palo_alto_sdwan_internet_zones: >-
+      {{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}
+    palo_alto_sdwan_internal_zones: >-
+      {{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}
+    palo_alto_sdwan_distribution_profile: >-
+      {{ palo_alto_standalone_config_network.sdwan.traffic_distribution | default('BEST-AVAILABLE') }}
+    palo_alto_sdwan_rule_tag: "{{ palo_alto_standalone_config_sdwan_rule_tag }}"
+  when:
+    - palo_alto_standalone_config_sdwan_enabled | bool
+    - palo_alto_standalone_config_internet_interfaces | length >= 2
+    - palo_alto_standalone_config_internet_interfaces | length <= 4
+    - not ansible_check_mode
+
+- name: Create static default route in logical router
+  paloaltonetworks.panos.panos_logical_router_vrf_static_route:
+    provider: "{{ current_firewall_provider }}"
+    logical_router: "{{ palo_alto_standalone_config_logical_router_name }}"
+    vrf_name: default
+    name: "{{ item.route_name | default('default') }}"
+    destination: 0.0.0.0/0
+    nexthop_type: ip-address
+    nexthop: "{{ item.default_gateway }}"
+    interface: "{{ item.name }}"
+    metric: "{{ item.metric | default(10) }}"
+    state: present
+  loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }} default route"
+  when:
+    - palo_alto_bootstrap_advanced_routing_enabled | bool
+    - not palo_alto_standalone_config_sdwan_enabled | bool
+    - item.address_type | default('static') == 'static'
+    - item.default_gateway is defined
+    - item.default_gateway | string | trim | length > 0
+    - not ansible_check_mode
+
+- name: Create static default route in virtual router
+  paloaltonetworks.panos.panos_static_route:
+    provider: "{{ current_firewall_provider }}"
+    virtual_router: default
+    name: "{{ item.route_name | default('default') }}"
+    destination: 0.0.0.0/0
+    nexthop_type: ip-address
+    nexthop: "{{ item.default_gateway }}"
+    interface: "{{ item.name }}"
+    metric: "{{ item.metric | default(10) }}"
+    state: present
+  loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }} default route"
+  when:
+    - not palo_alto_bootstrap_advanced_routing_enabled | bool
+    - not palo_alto_standalone_config_sdwan_enabled | bool
+    - item.address_type | default('static') == 'static'
+    - item.default_gateway is defined
+    - item.default_gateway | string | trim | length > 0
+    - not ansible_check_mode
+
+- name: Create NAT policy tag
+  paloaltonetworks.panos.panos_tag_object:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ palo_alto_standalone_config_nat_rule_tag }}"
+    color: orange
+    comments: "Groups bootstrap-generated NAT policy rules."
+    vsys: vsys1
+    state: present
+  when: not ansible_check_mode
+
+- name: Create outbound NAT rules
+  paloaltonetworks.panos.panos_nat_rule2:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item.nat_rule_name | default('PAT-' ~ item.name | replace('/', '-')) }}"
+    description: "{{ item.description | default('NAT internal traffic out ' ~ item.name) }}"
+    nat_type: ipv4
+    from_zones: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    to_zones:
+      - "{{ item.zone }}"
+    to_interface: "{{ item.name }}"
+    service: any
+    source_addresses:
+      - any
+    destination_addresses:
+      - any
+    source_translation_type: dynamic-ip-and-port
+    source_translation_address_type: interface-address
+    source_translation_interface: "{{ item.name }}"
+    tags: "{{ ((item.tags | default([])) + [palo_alto_standalone_config_nat_rule_tag | default('NAT')]) | unique | list }}"
+    group_tag: "{{ palo_alto_standalone_config_nat_rule_tag | default('NAT') }}"
+    state: present
+    vsys: vsys1
+  loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - not ansible_check_mode
+    - palo_alto_standalone_config_internal_interfaces | length > 0

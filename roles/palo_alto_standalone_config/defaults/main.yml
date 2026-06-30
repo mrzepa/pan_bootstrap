@@ -1,0 +1,37 @@
+---
+palo_alto_standalone_config_logical_router_name: default
+palo_alto_standalone_config_security_defaults_enabled: true
+palo_alto_standalone_config_security_default_certificate_minimum_valid_days: 0
+palo_alto_standalone_config_dynamic_update_schedule_enabled: true
+palo_alto_standalone_config_dynamic_update_schedule_application_threats_at: "01:00"
+palo_alto_standalone_config_dynamic_update_schedule_new_app_threshold_hours: 48
+palo_alto_standalone_config_dynamic_update_schedule_anti_virus_at: 0
+palo_alto_standalone_config_network: {}
+palo_alto_standalone_config_policy_baseline_enabled: true
+palo_alto_standalone_config_known_bad_lists_enabled: true
+palo_alto_standalone_config_block_rule_tag: BLOCK
+palo_alto_standalone_config_default_rule_tag: DEFAULT
+palo_alto_standalone_config_allow_rule_tag: ALLOW
+palo_alto_standalone_config_nat_rule_tag: NAT
+palo_alto_standalone_config_sdwan_rule_tag: SDWAN
+palo_alto_standalone_config_geo_blocking_enabled: true
+palo_alto_standalone_config_geo_blocked_regions:
+  - CN
+  - KP
+  - NG
+  - RU
+palo_alto_standalone_config_internal_profile_group: "Internal Security Groups"
+palo_alto_standalone_config_log_forwarding_profile: default
+palo_alto_standalone_config_system_dns_primary: 1.1.1.1
+palo_alto_standalone_config_system_dns_secondary: 1.0.0.1
+palo_alto_standalone_config_system_ntp_primary: 0.pool.org
+palo_alto_standalone_config_system_ntp_secondary: 1.pool.org
+palo_alto_standalone_config_system_timezone: UTC
+palo_alto_standalone_config_login_banner: >-
+  This is a private system. Unauthorized access is prohibited and activity may be monitored.
+palo_alto_standalone_config_palo_alto_update_applications:
+  - paloalto-updates
+palo_alto_standalone_config_interface_management_profile: PING
+palo_alto_standalone_config_lldp_profile: LLDP-PR
+palo_alto_standalone_config_internal_zone_protection_profile: Internal-Zone-Protect
+palo_alto_standalone_config_internet_zone_protection_profile: Internet-ZoneProtect-Protect

@@ -1,0 +1,10 @@
+---
+palo_alto_sdwan_enabled: false
+palo_alto_sdwan_interface_name: sdwan.1
+palo_alto_sdwan_profile_path_monitoring: Aggressive
+palo_alto_sdwan_profile_probe_frequency: "5"
+palo_alto_sdwan_profile_failback_hold_time: "120"
+palo_alto_sdwan_path_quality_profile: voip-video
+palo_alto_sdwan_rule_name: "Best Path"
+palo_alto_sdwan_distribution_profile: BEST-AVAILABLE
+palo_alto_sdwan_rule_tag: SDWAN

@@ -4,6 +4,17 @@
 panos_version: "12.1.7-h1"
 
 firewall_username: admin
+telemetry_region: ca
+
+advanced_routing_enabled: true
+logical_router_name: default
+
+system_settings:
+  timezone: "Canada/Eastern"
+  dns_primary: "1.1.1.1"
+  dns_secondary: "1.0.0.1"
+  ntp_primary: "0.pool.org"
+  ntp_secondary: "1.pool.org"
 
 add_to_panorama: false
 panorama:
@@ -16,6 +27,42 @@ panorama:
 # deployment_mode must be standalone or ha_pair.
 # For ha_pair, define exactly two firewalls and set roles primary/secondary.
 deployment_mode: standalone
+
+network:
+  zones:
+    - name: INTERNET
+      type: internet
+      description: Internet-facing zone
+    - name: INSIDE
+      type: internal
+      description: Internal trusted zone
+  internet_interfaces:
+    - name: ethernet1/1
+      zone: INTERNET
+      address_type: dhcp
+      tags:
+        - ISP1
+    - name: ethernet1/2
+      zone: INTERNET
+      address_type: static
+      ip_address: "203.0.113.2/30"
+      default_gateway: "203.0.113.1"
+      tags:
+        - ISP2
+    - name: ethernet1/4
+      zone: INTERNET
+      address_type: pppoe
+      pppoe_username: "isp-user@example.net"
+      pppoe_password: "change-me"
+      tags:
+        - ISP3
+  internal_interfaces:
+    - name: ethernet1/3
+      zone: INSIDE
+      ip_address: "192.168.1.1/24"
+  sdwan:
+    enabled: true
+    traffic_distribution: BEST-AVAILABLE
 
 # Required for local HA only: deployment_mode ha_pair with add_to_panorama false.
 # When add_to_panorama is true, HA config is expected to come from Panorama templates.

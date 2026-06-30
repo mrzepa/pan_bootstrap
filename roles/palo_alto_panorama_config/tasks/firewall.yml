@@ -1,0 +1,30 @@
+---
+- name: Connect firewall to Panorama
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ current_firewall_provider }}"
+    cmd: set
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/panorama/local-panorama"
+    element: "<panorama-server>{{ panorama_settings.public_fqdn }}</panorama-server>"
+  when: not ansible_check_mode
+
+- name: Get Panorama auth key
+  get_panorama_authkey:
+    pano_ip: "{{ panorama_settings.host }}"
+    pano_api_key: "{{ panorama_settings.api_key }}"
+  register: palo_alto_panorama_config_auth_result
+  delegate_to: localhost
+
+- name: Set Panorama auth key on firewall
+  paloaltonetworks.panos.panos_op:
+    provider: "{{ current_firewall_provider }}"
+    cmd: "request authkey set {{ palo_alto_panorama_config_auth_result.auth_key }}"
+  register: palo_alto_panorama_config_authkey_set_result
+  changed_when: >-
+    palo_alto_panorama_config_authkey_set_result is succeeded and
+    ('Not valid when already connected to Panorama' not in (palo_alto_panorama_config_authkey_set_result.msg | default('')))
+  failed_when: >-
+    palo_alto_panorama_config_authkey_set_result is failed and
+    ('Not valid when already connected to Panorama' not in (palo_alto_panorama_config_authkey_set_result.msg | default('')))
+  when:
+    - palo_alto_panorama_config_auth_result.auth_key is defined
+    - not ansible_check_mode
