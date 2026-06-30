@@ -1,0 +1,7 @@
+---
+ha_default_netmask: 255.255.255.252
+ha_primary_ha1_ip: 169.254.0.1
+ha_secondary_ha1_ip: 169.254.0.2
+ha_primary_priority: 90
+ha_secondary_priority: 101
+ha_preemptive: true

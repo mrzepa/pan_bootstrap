@@ -1,0 +1,5 @@
+ansible-core
+pan-os-python
+pypanrestv2
+requests
+urllib3

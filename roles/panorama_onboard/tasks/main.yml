@@ -1,0 +1,111 @@
+---
+- name: Set Panorama provider
+  ansible.builtin.set_fact:
+    panorama_provider:
+      ip_address: "{{ panorama_settings.host }}"
+      api_key: "{{ panorama_settings.api_key }}"
+
+- name: Add firewalls to Panorama managed devices
+  panorama_add_fw:
+    pano_ip: "{{ panorama_settings.host }}"
+    pano_api_key: "{{ panorama_settings.api_key }}"
+    fw_serial: "{{ item.serial }}"
+  loop: "{{ panorama_firewalls }}"
+  loop_control:
+    label: "{{ item.hostname }} - {{ item.serial }}"
+  register: panorama_add_results
+  when:
+    - item.serial is defined
+    - item.serial | string | trim | length > 0
+
+- name: Query device group membership
+  vars:
+    panorama_xpath: "/config/devices/entry[@name='localhost.localdomain']/device-group/entry[@name='{{ panorama_settings.device_group }}']/devices"
+  ansible.builtin.uri:
+    url: "https://{{ panorama_settings.host }}/api/?type=config&action=get&xpath={{ panorama_xpath | urlencode }}&key={{ panorama_settings.api_key }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ panorama_firewalls }}"
+  loop_control:
+    label: "{{ item.hostname }} - {{ item.serial }} in {{ panorama_settings.device_group }}"
+  register: device_group_membership
+  changed_when: false
+  when:
+    - item.serial is defined
+    - item.serial | string | trim | length > 0
+
+- name: Add firewalls to device group
+  vars:
+    panorama_xpath: "/config/devices/entry[@name='localhost.localdomain']/device-group/entry[@name='{{ panorama_settings.device_group }}']/devices"
+    panorama_element: "<entry name='{{ item.item.serial }}'/>"
+  ansible.builtin.uri:
+    url: "https://{{ panorama_settings.host }}/api/?type=config&action=set&xpath={{ panorama_xpath | urlencode }}&element={{ panorama_element | urlencode }}&key={{ panorama_settings.api_key }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ device_group_membership.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.hostname }} - {{ item.item.serial }} -> {{ panorama_settings.device_group }}"
+  register: add_device_group_results
+  changed_when: true
+  when:
+    - item.item.serial is defined
+    - item.content is defined
+    - item.item.serial not in item.content
+
+- name: Query template stack membership
+  vars:
+    panorama_xpath: "/config/devices/entry[@name='localhost.localdomain']/template-stack/entry[@name='{{ panorama_settings.template_stack }}']/devices"
+  ansible.builtin.uri:
+    url: "https://{{ panorama_settings.host }}/api/?type=config&action=get&xpath={{ panorama_xpath | urlencode }}&key={{ panorama_settings.api_key }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ panorama_firewalls }}"
+  loop_control:
+    label: "{{ item.hostname }} - {{ item.serial }} in {{ panorama_settings.template_stack }}"
+  register: template_stack_membership
+  changed_when: false
+  when:
+    - item.serial is defined
+    - item.serial | string | trim | length > 0
+
+- name: Add firewalls to template stack
+  vars:
+    panorama_xpath: "/config/devices/entry[@name='localhost.localdomain']/template-stack/entry[@name='{{ panorama_settings.template_stack }}']/devices"
+    panorama_element: "<entry name='{{ item.item.serial }}'/>"
+  ansible.builtin.uri:
+    url: "https://{{ panorama_settings.host }}/api/?type=config&action=set&xpath={{ panorama_xpath | urlencode }}&element={{ panorama_element | urlencode }}&key={{ panorama_settings.api_key }}"
+    method: GET
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    validate_certs: false
+    return_content: true
+  loop: "{{ template_stack_membership.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.hostname }} - {{ item.item.serial }} -> {{ panorama_settings.template_stack }}"
+  register: add_template_stack_results
+  changed_when: true
+  when:
+    - item.item.serial is defined
+    - item.content is defined
+    - item.item.serial not in item.content
+
+- name: Commit Panorama onboarding changes
+  paloaltonetworks.panos.panos_commit_panorama:
+    provider: "{{ panorama_provider }}"
+    description: "Ansible change for standalone firewall onboarding"
+    sync: true
+  when: >
+    not ansible_check_mode and (
+      (panorama_add_results is defined and (panorama_add_results.results | default([]) | selectattr('changed', 'defined') | selectattr('changed') | list | length) > 0)
+      or (add_device_group_results is defined and (add_device_group_results.results | default([]) | selectattr('changed', 'defined') | selectattr('changed') | list | length) > 0)
+      or (add_template_stack_results is defined and (add_template_stack_results.results | default([]) | selectattr('changed', 'defined') | selectattr('changed') | list | length) > 0)
+    )

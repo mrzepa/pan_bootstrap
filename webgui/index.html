@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Palo Alto Bootstrap Inputs</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef3f7;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --ink: #162033;
+      --muted: #627189;
+      --line: #d7e0ea;
+      --line-strong: #b9c7d6;
+      --accent: #0f766e;
+      --accent-strong: #115e59;
+      --blue: #1d4ed8;
+      --blue-soft: #dbeafe;
+      --green-soft: #dcfce7;
+      --warn: #b45309;
+      --warn-soft: #fef3c7;
+      --danger: #b91c1c;
+      --shadow: 0 18px 50px rgba(21, 35, 55, 0.12);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(180deg, rgba(15, 118, 110, 0.12), rgba(238, 243, 247, 0) 310px),
+        var(--bg);
+      color: var(--ink);
+    }
+
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+      gap: 20px;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      min-height: 112px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 22px 24px;
+      background: #132238;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.15;
+      font-weight: 760;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    header p { color: #cbd5e1; }
+    code { color: inherit; }
+
+    section, aside {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(21, 35, 55, 0.06);
+    }
+
+    section { padding: 0; }
+
+    aside {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+      overflow: hidden;
+    }
+
+    .stack { display: grid; gap: 16px; }
+    .panel-stack { display: grid; gap: 0; }
+
+    .block {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .block:last-child { border-bottom: 0; }
+
+    .block-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px 11px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+    }
+
+    textarea {
+      min-height: 650px;
+      resize: vertical;
+      border: 0;
+      border-top: 1px solid var(--line);
+      border-radius: 0;
+      background: #0f172a;
+      color: #dbeafe;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      min-height: 38px;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 700;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      border-color: var(--line-strong);
+      transform: translateY(-1px);
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover { background: var(--accent-strong); }
+
+    button.secondary {
+      border-color: rgba(255, 255, 255, 0.26);
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+    }
+
+    button.ghost {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.22);
+      color: #fff;
+    }
+
+    button.danger {
+      color: var(--danger);
+      background: #fff;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .pill.green {
+      background: var(--green-soft);
+      color: #166534;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-soft);
+    }
+
+    .checkline {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 720;
+      color: var(--ink);
+    }
+
+    .checkline input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .firewall {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      background: linear-gradient(180deg, #fff, #fbfdff);
+    }
+
+    .firewall-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .firewall-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .firewall-index {
+      width: 28px;
+      height: 28px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #e0f2fe;
+      color: #075985;
+      font-size: 13px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .hidden { display: none !important; }
+
+    .note {
+      color: var(--warn);
+      background: var(--warn-soft);
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 9px 10px;
+      font-size: 13px;
+      margin: 0 0 12px;
+    }
+
+    .output-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 16px 16px 13px;
+      background: var(--panel-soft);
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 620;
+    }
+
+    .save-message {
+      grid-column: 1 / -1;
+      min-height: 22px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 650;
+      text-align: right;
+    }
+
+    .save-message.success { color: #bbf7d0; }
+    .save-message.error { color: #fecaca; }
+
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; padding: 16px; }
+      header { align-items: start; flex-direction: column; }
+      aside { position: static; }
+      textarea { min-height: 420px; }
+    }
+
+    @media (max-width: 680px) {
+      .grid, .grid.three { grid-template-columns: 1fr; }
+      .block-head, .switch-row { align-items: start; flex-direction: column; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Palo Alto Bootstrap Inputs</h1>
+        <p>Generate the YAML consumed by <code>playbooks/bootstrap_firewalls.yml</code>.</p>
+        <div class="chip-row">
+          <span class="chip">PAN-OS 12.1.7-h1</span>
+          <span class="chip">Parallel bootstrap</span>
+          <span class="chip">Standalone or HA</span>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button type="button" class="ghost" id="addFirewall">Add Firewall</button>
+        <button type="button" class="secondary" id="downloadYaml">Download YAML</button>
+        <button type="button" class="primary" id="saveYaml">Save vars/firewalls.yml</button>
+        <div id="saveMessage" class="save-message"></div>
+      </div>
+    </header>
+
+    <section class="panel-stack">
+      <div class="block">
+        <div class="block-head">
+          <div>
+            <h2>Run Settings</h2>
+            <p>Set the target version and deployment mode for this bootstrap batch.</p>
+          </div>
+          <span class="pill green">Required</span>
+        </div>
+        <div class="grid three">
+          <label>PAN-OS Version
+            <input id="panosVersion" value="12.1.7-h1">
+          </label>
+          <label>Deployment Mode
+            <select id="deploymentMode">
+              <option value="standalone">Standalone</option>
+              <option value="ha_pair">HA Pair</option>
+            </select>
+          </label>
+          <label>Firewall Username
+            <input id="firewallUsername" value="admin">
+          </label>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <div>
+            <h2>Panorama</h2>
+            <p>When enabled, HA configuration is expected from Panorama templates.</p>
+          </div>
+          <span class="pill">Optional</span>
+        </div>
+        <div class="switch-row">
+          <label class="checkline">
+            <input id="addToPanorama" type="checkbox">
+            Add firewalls to Panorama
+          </label>
+          <span id="panoramaMode" class="subtle">Local bootstrap only</span>
+        </div>
+        <div id="panoramaFields" class="grid hidden" style="margin-top: 12px;">
+          <label>Panorama Host
+            <input id="panoramaHost" placeholder="panorama.example.com">
+          </label>
+          <label>Panorama Public FQDN
+            <input id="panoramaFqdn" placeholder="panorama.example.com">
+          </label>
+          <label>Panorama API Key
+            <input id="panoramaApiKey" type="password">
+          </label>
+          <label>Device Group
+            <input id="deviceGroup">
+          </label>
+          <label>Template Stack
+            <input id="templateStack">
+          </label>
+        </div>
+      </div>
+
+      <div id="haBlock" class="block hidden">
+        <div class="block-head">
+          <div>
+            <h2>Local HA</h2>
+            <p>Used only for HA pairs that are not managed by Panorama templates.</p>
+          </div>
+          <span class="pill">Tagged ha</span>
+        </div>
+        <p id="haPanoramaNote" class="note hidden">Panorama is enabled, so local HA inputs will be omitted from the generated YAML.</p>
+        <div id="haFields" class="stack">
+          <div class="grid three">
+            <label>HA1 Interface
+              <input id="ha1Interface" value="ha1-a" placeholder="ha1-a or ethernet1/7">
+            </label>
+            <label>HA2 Interface
+              <input id="ha2Interface" value="ha2-a" placeholder="ha2-a or ethernet1/8">
+            </label>
+            <label>Group ID
+              <input id="haGroupId" value="1" inputmode="numeric">
+            </label>
+          </div>
+          <div class="grid three">
+            <label>Primary HA1 IP
+              <input id="primaryHa1Ip" value="169.254.0.1">
+            </label>
+            <label>Secondary HA1 IP
+              <input id="secondaryHa1Ip" value="169.254.0.2">
+            </label>
+            <label>HA1 Netmask
+              <input id="haNetmask" value="255.255.255.252">
+            </label>
+          </div>
+          <div class="grid three">
+            <label>Primary Priority
+              <input id="primaryPriority" value="90" inputmode="numeric">
+            </label>
+            <label>Secondary Priority
+              <input id="secondaryPriority" value="101" inputmode="numeric">
+            </label>
+            <label class="checkline" style="align-self: end; min-height: 42px;">
+              <input id="haPreemptive" type="checkbox" checked>
+              Preemptive
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <div>
+            <h2>Firewalls</h2>
+            <p>Define the staged devices that should be added to the dynamic inventory.</p>
+          </div>
+          <span id="firewallCount" class="pill green">1 firewall</span>
+        </div>
+        <p id="modeNote" class="note hidden">HA pair mode expects exactly two firewalls: one primary and one secondary.</p>
+        <div id="firewalls" class="stack"></div>
+      </div>
+    </section>
+
+    <aside>
+      <div class="output-head">
+        <div>
+          <h2>Generated YAML</h2>
+          <p>Save this as <code>vars/firewalls.yml</code>.</p>
+        </div>
+        <span id="yamlStatus" class="pill green">Ready</span>
+      </div>
+      <textarea id="yamlOutput" spellcheck="false"></textarea>
+    </aside>
+  </main>
+
+  <template id="firewallTemplate">
+    <div class="firewall">
+      <div class="firewall-head">
+        <div class="firewall-title-row">
+          <span class="firewall-index"></span>
+          <strong class="firewallTitle">Firewall</strong>
+          <span class="pill rolePill">Standalone</span>
+        </div>
+        <button type="button" class="danger removeFirewall">Remove</button>
+      </div>
+      <div class="grid">
+        <label>Hostname
+          <input data-field="hostname" placeholder="SITE-FW">
+        </label>
+        <label>Staging IP
+          <input data-field="staging_ip" placeholder="192.0.2.10">
+        </label>
+        <label>Management IP
+          <input data-field="management_ip" placeholder="Optional backup HA1 IP">
+        </label>
+        <label>Serial
+          <input data-field="serial" placeholder="Required for Panorama">
+        </label>
+        <label>Role
+          <select data-field="role">
+            <option value="standalone">Standalone</option>
+            <option value="primary">Primary</option>
+            <option value="secondary">Secondary</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const state = {
+      firewalls: [
+        { hostname: "SITE-FW", staging_ip: "192.0.2.10", management_ip: "", serial: "", role: "standalone" }
+      ]
+    };
+
+    const el = (id) => document.getElementById(id);
+    const quote = (value) => `"${String(value || "").replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+
+    function buildYaml() {
+      const addPanorama = el("addToPanorama").checked;
+      const isHa = el("deploymentMode").value === "ha_pair";
+      const lines = [
+        "---",
+        `panos_version: ${quote(el("panosVersion").value)}`,
+        "",
+        `firewall_username: ${quote(el("firewallUsername").value || "admin")}`,
+        "",
+        `add_to_panorama: ${addPanorama ? "true" : "false"}`,
+        "panorama:",
+        `  host: ${quote(el("panoramaHost").value)}`,
+        `  public_fqdn: ${quote(el("panoramaFqdn").value)}`,
+        `  api_key: ${quote(el("panoramaApiKey").value)}`,
+        `  device_group: ${quote(el("deviceGroup").value)}`,
+        `  template_stack: ${quote(el("templateStack").value)}`,
+        "",
+        `deployment_mode: ${el("deploymentMode").value}`,
+        ""
+      ];
+
+      if (isHa && !addPanorama) {
+        lines.push(
+          "ha:",
+          `  ha1_interface: ${quote(el("ha1Interface").value)}`,
+          `  ha2_interface: ${quote(el("ha2Interface").value)}`,
+          `  group_id: ${el("haGroupId").value || 1}`,
+          `  netmask: ${quote(el("haNetmask").value)}`,
+          `  primary_ha1_ip: ${quote(el("primaryHa1Ip").value)}`,
+          `  secondary_ha1_ip: ${quote(el("secondaryHa1Ip").value)}`,
+          `  primary_priority: ${el("primaryPriority").value || 90}`,
+          `  secondary_priority: ${el("secondaryPriority").value || 101}`,
+          `  preemptive: ${el("haPreemptive").checked ? "true" : "false"}`,
+          ""
+        );
+      }
+
+      lines.push("firewalls:");
+      state.firewalls.forEach((fw) => {
+        lines.push(`  - hostname: ${quote(fw.hostname)}`);
+        lines.push(`    staging_ip: ${quote(fw.staging_ip)}`);
+        if (fw.management_ip) {
+          lines.push(`    management_ip: ${quote(fw.management_ip)}`);
+        }
+        lines.push(`    serial: ${quote(fw.serial)}`);
+        lines.push(`    role: ${fw.role || "standalone"}`);
+      });
+
+      el("yamlOutput").value = lines.join("\n") + "\n";
+      updateStatus();
+    }
+
+    function updateStatus() {
+      const isHa = el("deploymentMode").value === "ha_pair";
+      const addPanorama = el("addToPanorama").checked;
+      el("firewallCount").textContent = `${state.firewalls.length} firewall${state.firewalls.length === 1 ? "" : "s"}`;
+      el("panoramaMode").textContent = addPanorama ? "Panorama onboarding enabled" : "Local bootstrap only";
+      el("yamlStatus").textContent = isHa && state.firewalls.length !== 2 ? "Review HA" : "Ready";
+      el("yamlStatus").classList.toggle("green", !(isHa && state.firewalls.length !== 2));
+    }
+
+    function renderFirewalls() {
+      const list = el("firewalls");
+      list.innerHTML = "";
+      state.firewalls.forEach((fw, index) => {
+        const node = el("firewallTemplate").content.firstElementChild.cloneNode(true);
+        node.querySelector(".firewall-index").textContent = index + 1;
+        node.querySelector(".firewallTitle").textContent = fw.hostname || `Firewall ${index + 1}`;
+        node.querySelector(".rolePill").textContent = fw.role || "standalone";
+        node.querySelectorAll("[data-field]").forEach((field) => {
+          field.value = fw[field.dataset.field] || "";
+          field.addEventListener("input", () => {
+            fw[field.dataset.field] = field.value;
+            node.querySelector(".firewallTitle").textContent = fw.hostname || `Firewall ${index + 1}`;
+            node.querySelector(".rolePill").textContent = fw.role || "standalone";
+            buildYaml();
+          });
+          field.addEventListener("change", () => {
+            fw[field.dataset.field] = field.value;
+            node.querySelector(".rolePill").textContent = fw.role || "standalone";
+            buildYaml();
+          });
+        });
+        node.querySelector(".removeFirewall").addEventListener("click", () => {
+          state.firewalls.splice(index, 1);
+          renderFirewalls();
+          buildYaml();
+        });
+        list.appendChild(node);
+      });
+      buildYaml();
+    }
+
+    function syncMode() {
+      const isHa = el("deploymentMode").value === "ha_pair";
+      const addPanorama = el("addToPanorama").checked;
+      el("modeNote").classList.toggle("hidden", !isHa);
+      el("haBlock").classList.toggle("hidden", !isHa);
+      el("haFields").classList.toggle("hidden", addPanorama);
+      el("haPanoramaNote").classList.toggle("hidden", !addPanorama || !isHa);
+
+      if (isHa) {
+        if (state.firewalls.length === 1) {
+          state.firewalls[0].role = "primary";
+          state.firewalls.push({ hostname: "", staging_ip: "", management_ip: "", serial: "", role: "secondary" });
+        }
+        state.firewalls[0].role = state.firewalls[0].role === "standalone" ? "primary" : state.firewalls[0].role;
+      } else if (state.firewalls.length === 1) {
+        state.firewalls[0].role = "standalone";
+      }
+
+      renderFirewalls();
+    }
+
+    document.querySelectorAll("input, select").forEach((input) => input.addEventListener("input", buildYaml));
+    el("deploymentMode").addEventListener("change", syncMode);
+    el("addToPanorama").addEventListener("change", () => {
+      el("panoramaFields").classList.toggle("hidden", !el("addToPanorama").checked);
+      syncMode();
+    });
+    el("addFirewall").addEventListener("click", () => {
+      const role = el("deploymentMode").value === "ha_pair" && state.firewalls.length > 0 ? "secondary" : "standalone";
+      state.firewalls.push({ hostname: "", staging_ip: "", management_ip: "", serial: "", role });
+      renderFirewalls();
+    });
+    el("downloadYaml").addEventListener("click", () => {
+      buildYaml();
+      const blob = new Blob([el("yamlOutput").value], { type: "text/yaml" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "firewalls.yml";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+    el("saveYaml").addEventListener("click", async () => {
+      buildYaml();
+      const message = el("saveMessage");
+      message.className = "save-message";
+      message.textContent = "Saving...";
+      try {
+        const response = await fetch("/api/save-yaml", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ yaml: el("yamlOutput").value })
+        });
+        if (!response.ok) {
+          throw new Error(`Save failed with HTTP ${response.status}`);
+        }
+        const result = await response.json();
+        message.className = "save-message success";
+        message.textContent = `Saved ${result.bytes} bytes to vars/firewalls.yml`;
+      } catch (error) {
+        message.className = "save-message error";
+        message.textContent = "Start with python3 webgui_server.py to enable saving.";
+      }
+    });
+
+    syncMode();
+  </script>
+</body>
+</html>

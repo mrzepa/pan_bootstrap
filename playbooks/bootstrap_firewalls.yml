@@ -1,0 +1,244 @@
+---
+- name: Validate Palo Alto bootstrap inputs
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - always
+  vars:
+    bootstrap_input_file: "{{ input_file | default(playbook_dir ~ '/../vars/firewalls.yml') }}"
+  vars_prompt:
+    - name: firewall_password_prompt
+      prompt: Firewall password for all staged firewalls
+      private: true
+  pre_tasks:
+    - name: Load firewall input file
+      ansible.builtin.include_vars:
+        file: "{{ bootstrap_input_file }}"
+        name: bootstrap_input
+
+    - name: Normalize bootstrap inputs
+      vars:
+        input_panorama: "{{ bootstrap_input.panorama | default({}) }}"
+      ansible.builtin.set_fact:
+        bootstrap_firewalls: "{{ bootstrap_input.firewalls | default([]) }}"
+        bootstrap_deployment_mode: "{{ bootstrap_input.deployment_mode | default('standalone') }}"
+        bootstrap_add_to_panorama: "{{ bootstrap_input.add_to_panorama | default(false) | bool }}"
+        bootstrap_panos_version: "{{ bootstrap_input.panos_version | default(panos_version | default('')) }}"
+        bootstrap_firewall_username: "{{ bootstrap_input.firewall_username | default(firewall_username_default) }}"
+        bootstrap_firewall_password: "{{ firewall_password_prompt }}"
+        bootstrap_panorama:
+          host: "{{ input_panorama.host | default(panorama_host) }}"
+          public_fqdn: "{{ input_panorama.public_fqdn | default(panorama_public_fqdn) }}"
+          api_key: "{{ input_panorama.api_key | default(panorama_api_key) }}"
+          device_group: "{{ input_panorama.device_group | default('') }}"
+          template_stack: "{{ input_panorama.template_stack | default('') }}"
+        bootstrap_ha:
+          ha1_interface: "{{ bootstrap_input.ha.ha1_interface | default('') }}"
+          ha2_interface: "{{ bootstrap_input.ha.ha2_interface | default('') }}"
+          group_id: "{{ bootstrap_input.ha.group_id | default('') }}"
+          netmask: "{{ bootstrap_input.ha.netmask | default('255.255.255.252') }}"
+          preemptive: "{{ bootstrap_input.ha.preemptive | default(true) | bool }}"
+          primary_priority: "{{ bootstrap_input.ha.primary_priority | default(90) }}"
+          secondary_priority: "{{ bootstrap_input.ha.secondary_priority | default(101) }}"
+          primary_ha1_ip: "{{ bootstrap_input.ha.primary_ha1_ip | default('169.254.0.1') }}"
+          secondary_ha1_ip: "{{ bootstrap_input.ha.secondary_ha1_ip | default('169.254.0.2') }}"
+
+    - name: Validate common required inputs
+      ansible.builtin.assert:
+        that:
+          - bootstrap_deployment_mode in ['standalone', 'ha_pair']
+          - bootstrap_firewalls | length > 0
+          - bootstrap_panos_version | string | trim | length > 0
+          - bootstrap_firewall_username | string | trim | length > 0
+          - bootstrap_firewall_password | string | trim | length > 0
+        fail_msg: "Missing required firewall bootstrap inputs. See vars/firewalls.example.yml."
+
+    - name: Validate each firewall entry
+      ansible.builtin.assert:
+        that:
+          - item.hostname is defined
+          - item.hostname | string | trim | length > 0
+          - item.staging_ip is defined
+          - item.staging_ip | string | trim | length > 0
+          - item.role | default('standalone') in ['standalone', 'primary', 'secondary']
+        fail_msg: "Each firewall must have hostname, staging_ip, and a valid role."
+      loop: "{{ bootstrap_firewalls }}"
+      loop_control:
+        label: "{{ item.hostname | default(item.staging_ip | default('unknown')) }}"
+
+    - name: Validate standalone deployment
+      ansible.builtin.assert:
+        that:
+          - bootstrap_firewalls | length == 1
+          - (bootstrap_firewalls[0].role | default('standalone')) == 'standalone'
+        fail_msg: "deployment_mode standalone must contain exactly one firewall with role standalone."
+      when: bootstrap_deployment_mode == 'standalone'
+
+    - name: Validate HA pair deployment
+      ansible.builtin.assert:
+        that:
+          - bootstrap_firewalls | length == 2
+          - (bootstrap_firewalls | selectattr('role', 'equalto', 'primary') | list | length) == 1
+          - (bootstrap_firewalls | selectattr('role', 'equalto', 'secondary') | list | length) == 1
+        fail_msg: "deployment_mode ha_pair must contain exactly two firewalls: one primary and one secondary."
+      when: bootstrap_deployment_mode == 'ha_pair'
+
+    - name: Validate local HA inputs when Panorama is not managing HA
+      ansible.builtin.assert:
+        that:
+          - bootstrap_ha.ha1_interface | string | trim | length > 0
+          - bootstrap_ha.ha2_interface | string | trim | length > 0
+          - bootstrap_ha.group_id | string | trim | length > 0
+          - bootstrap_ha.group_id | int > 0
+          - bootstrap_ha.netmask | string | trim | length > 0
+        fail_msg: "Local HA bootstrap requires ha.ha1_interface, ha.ha2_interface, and ha.group_id when deployment_mode is ha_pair and add_to_panorama is false."
+      when:
+        - bootstrap_deployment_mode == 'ha_pair'
+        - not bootstrap_add_to_panorama
+
+    - name: Validate Panorama inputs when enabled
+      ansible.builtin.assert:
+        that:
+          - bootstrap_panorama.host | string | trim | length > 0
+          - bootstrap_panorama.public_fqdn | string | trim | length > 0
+          - bootstrap_panorama.api_key | string | trim | length > 0
+          - bootstrap_panorama.device_group | string | trim | length > 0
+          - bootstrap_panorama.template_stack | string | trim | length > 0
+          - item.serial is defined
+          - item.serial | string | trim | length > 0
+        fail_msg: "Panorama onboarding requires panorama host/public_fqdn/api_key/device_group/template_stack and a serial for every firewall."
+      loop: "{{ bootstrap_firewalls }}"
+      loop_control:
+        label: "{{ item.hostname }}"
+      when: bootstrap_add_to_panorama
+
+    - name: Probe firewall HTTPS reachability for check mode
+      ansible.builtin.wait_for:
+        host: "{{ item.staging_ip }}"
+        port: 443
+        state: started
+        timeout: 2
+      loop: "{{ bootstrap_firewalls }}"
+      loop_control:
+        label: "{{ item.hostname }} - {{ item.staging_ip }}"
+      register: firewall_reachability_results
+      changed_when: false
+      failed_when: false
+      when: ansible_check_mode
+
+    - name: Add firewalls to dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ item.hostname }}"
+        groups: firewalls_to_bootstrap
+        ansible_host: "{{ item.staging_ip }}"
+        ansible_connection: local
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+        firewall_info: "{{ item }}"
+        deployment_mode: "{{ bootstrap_deployment_mode }}"
+        add_to_panorama: "{{ bootstrap_add_to_panorama }}"
+        panos_version: "{{ bootstrap_panos_version }}"
+        firewall_username: "{{ bootstrap_firewall_username }}"
+        firewall_password: "{{ bootstrap_firewall_password }}"
+        panorama_settings: "{{ bootstrap_panorama }}"
+        ha_settings: "{{ bootstrap_ha }}"
+        ha_peer_info: >-
+          {{
+            (
+              bootstrap_firewalls
+              | rejectattr('hostname', 'equalto', item.hostname)
+              | list
+              | first
+            )
+            if bootstrap_deployment_mode == 'ha_pair'
+            else {}
+          }}
+        firewall_reachable: >-
+          {{
+            (
+              firewall_reachability_results.results
+              | default([])
+              | selectattr('item.hostname', 'equalto', item.hostname)
+              | rejectattr('failed', 'defined')
+              | rejectattr('unreachable', 'defined')
+              | list
+              | length
+            ) > 0
+          }}
+      loop: "{{ bootstrap_firewalls }}"
+      changed_when: false
+      no_log: true
+
+- name: Bootstrap Palo Alto firewalls
+  hosts: firewalls_to_bootstrap
+  gather_facts: false
+  strategy: ansible.builtin.free
+  tasks:
+    - name: Set current firewall provider
+      ansible.builtin.set_fact:
+        current_firewall_provider:
+          ip_address: "{{ firewall_info.staging_ip }}"
+          username: "{{ firewall_username }}"
+          password: "{{ firewall_password }}"
+      no_log: true
+      tags:
+        - always
+
+    - name: Skip unreachable firewall during check mode
+      ansible.builtin.debug:
+        msg: "Skipping {{ firewall_info.hostname }} in check mode because {{ firewall_info.staging_ip }} is not reachable on HTTPS."
+      when:
+        - ansible_check_mode
+        - not (firewall_reachable | default(false) | bool)
+
+    - name: Apply standalone Palo Alto baseline
+      ansible.builtin.include_role:
+        name: palo_alto_bootstrap
+      when:
+        - not ansible_check_mode or (firewall_reachable | default(false) | bool)
+
+    - name: Apply local HA configuration
+      ansible.builtin.include_role:
+        name: palo_alto_ha
+        apply:
+          tags:
+            - ha
+      tags:
+        - ha
+      when:
+        - deployment_mode == 'ha_pair'
+        - not (add_to_panorama | bool)
+        - not ansible_check_mode or (firewall_reachable | default(false) | bool)
+
+- name: Add firewalls to Panorama when requested
+  hosts: localhost
+  gather_facts: false
+  vars:
+    bootstrap_input_file: "{{ input_file | default(playbook_dir ~ '/../vars/firewalls.yml') }}"
+  tasks:
+    - name: Load firewall input file
+      ansible.builtin.include_vars:
+        file: "{{ bootstrap_input_file }}"
+        name: bootstrap_input
+
+    - name: Normalize Panorama onboarding inputs
+      vars:
+        input_panorama: "{{ bootstrap_input.panorama | default({}) }}"
+      ansible.builtin.set_fact:
+        panorama_onboarding_settings:
+          host: "{{ input_panorama.host | default(panorama_host) }}"
+          api_key: "{{ input_panorama.api_key | default(panorama_api_key) }}"
+          device_group: "{{ input_panorama.device_group | default('') }}"
+          template_stack: "{{ input_panorama.template_stack | default('') }}"
+      when: bootstrap_input.add_to_panorama | default(false) | bool
+
+    - name: Run Panorama onboarding
+      ansible.builtin.include_role:
+        name: panorama_onboard
+      vars:
+        panorama_firewalls: "{{ bootstrap_input.firewalls | default([]) }}"
+        panorama_settings: "{{ panorama_onboarding_settings }}"
+      when: bootstrap_input.add_to_panorama | default(false) | bool
+
+    - name: Show bootstrap completion summary
+      ansible.builtin.debug:
+        msg: "Completed Palo Alto bootstrap for {{ bootstrap_input.firewalls | default([]) | length }} firewall(s)."

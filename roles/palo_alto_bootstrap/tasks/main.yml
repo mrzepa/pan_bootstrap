@@ -1,0 +1,212 @@
+---
+- name: Set hostname
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ current_firewall_provider }}"
+    cmd: set
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system"
+    element: "<hostname>{{ firewall_info.hostname }}</hostname>"
+  when: not ansible_check_mode
+
+- name: Remove default security rule
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    state: absent
+    rule_name: rule1
+    vsys: vsys1
+  register: remove_default_security_rule
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Remove default virtual or logical routers
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ current_firewall_provider }}"
+    cmd: delete
+    xpath: "{{ item.xpath }}"
+  loop:
+    - name: default virtual router
+      xpath: "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']"
+    - name: default logical router
+      xpath: "/config/devices/entry[@name='localhost.localdomain']/network/logical-router/entry[@name='default']"
+  loop_control:
+    label: "{{ item.name }}"
+  register: remove_default_routers
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Remove default virtual wire
+  paloaltonetworks.panos.panos_virtual_wire:
+    provider: "{{ current_firewall_provider }}"
+    state: absent
+    name: default-vwire
+  register: remove_default_virtual_wire
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Remove trust and untrust zones
+  paloaltonetworks.panos.panos_zone:
+    provider: "{{ current_firewall_provider }}"
+    state: absent
+    zone: "{{ item }}"
+    vsys: vsys1
+  loop:
+    - trust
+    - untrust
+  register: remove_default_zones
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Remove default ethernet interfaces
+  paloaltonetworks.panos.panos_interface:
+    provider: "{{ current_firewall_provider }}"
+    state: absent
+    if_name: "{{ item }}"
+  loop:
+    - ethernet1/1
+    - ethernet1/2
+  register: remove_default_ethernet_interfaces
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Disable SIP ALG
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ current_firewall_provider }}"
+    cmd: set
+    xpath: "/config/shared/alg-override/application/entry[@name='sip']"
+    element: "<alg-disabled>yes</alg-disabled>"
+  when: not ansible_check_mode
+
+- name: Set telemetry region
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ current_firewall_provider }}"
+    cmd: set
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/device-telemetry"
+    element: "<region>{{ telemetry_region }}</region>"
+  when: not ansible_check_mode
+
+- name: Connect firewall to Panorama
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ current_firewall_provider }}"
+    cmd: set
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/panorama/local-panorama"
+    element: "<panorama-server>{{ panorama_settings.public_fqdn }}</panorama-server>"
+  when:
+    - add_to_panorama | bool
+    - not ansible_check_mode
+
+- name: Get Panorama auth key
+  get_panorama_authkey:
+    pano_ip: "{{ panorama_settings.host }}"
+    pano_api_key: "{{ panorama_settings.api_key }}"
+  register: panorama_auth_result
+  delegate_to: localhost
+  when: add_to_panorama | bool
+
+- name: Set Panorama auth key on firewall
+  paloaltonetworks.panos.panos_op:
+    provider: "{{ current_firewall_provider }}"
+    cmd: "request authkey set {{ panorama_auth_result.auth_key }}"
+  register: panorama_authkey_set_result
+  changed_when: >-
+    panorama_authkey_set_result is succeeded and
+    ('Not valid when already connected to Panorama' not in (panorama_authkey_set_result.msg | default('')))
+  failed_when: >-
+    panorama_authkey_set_result is failed and
+    ('Not valid when already connected to Panorama' not in (panorama_authkey_set_result.msg | default('')))
+  when:
+    - add_to_panorama | bool
+    - panorama_auth_result.auth_key is defined
+    - not ansible_check_mode
+
+- name: Remove default override for Threats scheduler
+  paloaltonetworks.panos.panos_type_cmd:
+    provider: "{{ current_firewall_provider }}"
+    cmd: delete
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/threats"
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Refresh license
+  panos_lic_fetch:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+
+- name: Update content
+  paloaltonetworks.panos.panos_dynamic_updates:
+    provider: "{{ current_firewall_provider }}"
+  when: not ansible_check_mode
+
+- name: Download latest anti-virus updates
+  panos_av_update:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+  when: not ansible_check_mode
+
+- name: Check for pending changes
+  paloaltonetworks.panos.panos_op:
+    provider: "{{ current_firewall_provider }}"
+    cmd: show config list changes
+  register: pending_changes
+
+- name: Commit configuration
+  paloaltonetworks.panos.panos_commit_firewall:
+    provider: "{{ current_firewall_provider }}"
+    sync: true
+  when:
+    - pending_changes.stdout is defined
+    - pending_changes.stdout | string | trim | length > 0
+    - "'No changes' not in (pending_changes.stdout | default(''))"
+    - not ansible_check_mode
+
+- name: Get current PAN-OS version
+  paloaltonetworks.panos.panos_facts:
+    provider: "{{ current_firewall_provider }}"
+    gather_subset:
+      - system
+  register: firewall_facts
+
+- name: Update PAN-OS version if needed
+  paloaltonetworks.panos.panos_software:
+    provider: "{{ current_firewall_provider }}"
+    version: "{{ panos_version }}"
+    download: true
+    install: true
+    restart: true
+    timeout: 3600
+  register: software_update
+  when:
+    - panos_version is defined
+    - panos_version | string | trim | length > 0
+    - firewall_facts is succeeded
+    - firewall_facts.ansible_facts is defined
+    - (firewall_facts.ansible_facts.system['sw-version'] | default('')) != panos_version
+    - not ansible_check_mode
+
+- name: Wait for HTTPS to become reachable after reboot
+  ansible.builtin.wait_for:
+    host: "{{ firewall_info.staging_ip }}"
+    port: 443
+    state: started
+    delay: 10
+    timeout: 900
+  when:
+    - software_update is defined
+    - software_update.changed | default(false) | bool
+    - not ansible_check_mode
+
+- name: Wait for firewall API after reboot
+  paloaltonetworks.panos.panos_check:
+    provider: "{{ current_firewall_provider }}"
+    initial_delay: 300
+    interval: 30
+    timeout: 600
+  register: reboot_check
+  until: reboot_check is succeeded
+  retries: 10
+  delay: 30
+  changed_when: true
+  when:
+    - software_update is defined
+    - software_update.changed | default(false) | bool
+    - not ansible_check_mode

@@ -1,0 +1,52 @@
+---
+# Copy this file to vars/firewalls.yml and fill in the real values.
+
+panos_version: "12.1.7-h1"
+
+firewall_username: admin
+
+add_to_panorama: false
+panorama:
+  host: "panorama.example.com"
+  public_fqdn: "panorama.example.com"
+  api_key: "change-me"
+  device_group: "Example-Device-Group"
+  template_stack: "Example-Template-Stack"
+
+# deployment_mode must be standalone or ha_pair.
+# For ha_pair, define exactly two firewalls and set roles primary/secondary.
+deployment_mode: standalone
+
+# Required for local HA only: deployment_mode ha_pair with add_to_panorama false.
+# When add_to_panorama is true, HA config is expected to come from Panorama templates.
+ha:
+  ha1_interface: "ha1-a"
+  ha2_interface: "ha2-a"
+  group_id: 1
+  netmask: "255.255.255.252"
+  primary_ha1_ip: "169.254.0.1"
+  secondary_ha1_ip: "169.254.0.2"
+  primary_priority: 90
+  secondary_priority: 101
+  preemptive: true
+
+firewalls:
+  - hostname: "SITE-FW"
+    staging_ip: "192.0.2.10"
+    management_ip: "198.51.100.10"
+    serial: "000000000001"
+    role: standalone
+
+# HA pair example:
+# deployment_mode: ha_pair
+# firewalls:
+#   - hostname: "SITE-FW-A"
+#     staging_ip: "192.0.2.10"
+#     management_ip: "198.51.100.10"
+#     serial: "000000000001"
+#     role: primary
+#   - hostname: "SITE-FW-B"
+#     staging_ip: "192.0.2.11"
+#     management_ip: "198.51.100.11"
+#     serial: "000000000002"
+#     role: secondary
