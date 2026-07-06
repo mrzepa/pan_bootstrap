@@ -22,12 +22,6 @@
     login_banner: "{{ palo_alto_standalone_config_login_banner }}"
   when: not ansible_check_mode
 
-- name: Apply standalone policy baseline
-  ansible.builtin.include_tasks: policy_baseline.yml
-  when:
-    - palo_alto_standalone_config_policy_baseline_enabled | bool
-    - palo_alto_standalone_config_network | length > 0
-
 - name: Configure dynamic update schedules
   paloaltonetworks.panos.panos_config_element:
     provider: "{{ current_firewall_provider }}"
@@ -170,3 +164,9 @@
   when:
     - palo_alto_standalone_config_security_defaults_enabled | bool
     - not ansible_check_mode
+
+- name: Apply standalone policy baseline
+  ansible.builtin.include_tasks: policy_baseline.yml
+  when:
+    - palo_alto_standalone_config_policy_baseline_enabled | bool
+    - palo_alto_standalone_config_network | length > 0

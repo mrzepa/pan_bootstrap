@@ -1,7 +1,7 @@
 ---
 # Shared defaults. Override these in vars/firewalls.yml when needed.
 firewall_username_default: admin
-telemetry_region: Americas
+telemetry_region: ca
 
 # Optional Panorama settings. These are only required when add_to_panorama is true.
 panorama_host: ""

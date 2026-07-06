@@ -29,7 +29,7 @@
         bootstrap_system_settings: "{{ bootstrap_input.system_settings | default({}) }}"
         bootstrap_panos_version: "{{ bootstrap_input.panos_version | default(panos_version | default('')) }}"
         bootstrap_firewall_username: "{{ bootstrap_input.firewall_username | default(firewall_username_default) }}"
-        bootstrap_telemetry_region: "{{ bootstrap_input.telemetry_region | default(telemetry_region | default('ca')) }}"
+        bootstrap_telemetry_region: "{{ bootstrap_input.telemetry_region | default('ca') }}"
         bootstrap_firewall_password: "{{ firewall_password_prompt }}"
         bootstrap_panorama:
           host: "{{ input_panorama.host | default(panorama_host) }}"

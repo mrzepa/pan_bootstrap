@@ -295,7 +295,7 @@
     ip_address: "{{ firewall_info.staging_ip }}"
     username: "{{ firewall_username }}"
     password: "{{ firewall_password }}"
-    endpoint: Policies/DefaultSecurityRules
+    endpoint: Policies/SecurityRules
     name: "{{ item.name }}"
     spec: "{{ item.spec }}"
   loop:
@@ -310,7 +310,7 @@
         profile-setting:
           group:
             member:
-              - "{{ palo_alto_standalone_config_internal_profile_group }}"
+              - "{{ palo_alto_standalone_config_security_profile_group }}"
     - name: interzone-default
       spec:
         action: drop

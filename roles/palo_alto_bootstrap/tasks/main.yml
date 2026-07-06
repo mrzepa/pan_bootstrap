@@ -1,4 +1,18 @@
 ---
+- name: Set telemetry region
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system"
+    element: |
+      <device-telemetry>
+        <device-health-performance>yes</device-health-performance>
+        <product-usage>yes</product-usage>
+        <threat-prevention>yes</threat-prevention>
+        <region>{{ palo_alto_bootstrap_telemetry_region }}</region>
+      </device-telemetry>
+    state: present
+  when: not ansible_check_mode
+
 - name: Set hostname
   paloaltonetworks.panos.panos_type_cmd:
     provider: "{{ current_firewall_provider }}"
@@ -83,20 +97,6 @@
     cmd: set
     xpath: "/config/shared/alg-override/application/entry[@name='sip']"
     element: "<alg-disabled>yes</alg-disabled>"
-  when: not ansible_check_mode
-
-- name: Set telemetry region
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
-    xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system"
-    element: |
-      <device-telemetry>
-        <device-health-performance>yes</device-health-performance>
-        <product-usage>yes</product-usage>
-        <threat-prevention>yes</threat-prevention>
-        <region>{{ palo_alto_bootstrap_telemetry_region }}</region>
-      </device-telemetry>
-    state: present
   when: not ansible_check_mode
 
 - name: Remove default override for Threats scheduler
