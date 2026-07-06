@@ -1,0 +1,212 @@
+---
+- name: Permit DNS to configured resolvers
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    rule_name: "Allow DNS to Approved Resolvers"
+    description: "Allows DNS only to the configured bootstrap DNS resolvers."
+    source_zone: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    destination_zone: "{{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}"
+    source_ip:
+      - any
+    destination_ip:
+      - Bootstrap-DNS-Primary
+      - Bootstrap-DNS-Secondary
+    application:
+      - dns-base
+    service:
+      - any
+    action: allow
+    log_end: true
+    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+    tag_name:
+      - "{{ palo_alto_standalone_config_allow_rule_tag }}"
+    location: top
+    vsys: vsys1
+    state: present
+  when:
+    - palo_alto_standalone_config_internal_interfaces | length > 0
+    - palo_alto_standalone_config_internet_interfaces | length > 0
+    - not ansible_check_mode
+
+- name: Permit NTP to configured servers
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    rule_name: "Allow NTP to Approved Servers"
+    description: "Allows NTP only to the configured bootstrap NTP servers."
+    source_zone: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    destination_zone: "{{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}"
+    source_ip:
+      - any
+    destination_ip:
+      - Bootstrap-NTP-Primary
+      - Bootstrap-NTP-Secondary
+    application:
+      - ntp-base
+    service:
+      - any
+    action: allow
+    log_end: true
+    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+    tag_name:
+      - "{{ palo_alto_standalone_config_allow_rule_tag }}"
+    location: top
+    vsys: vsys1
+    state: present
+  when:
+    - palo_alto_standalone_config_internal_interfaces | length > 0
+    - palo_alto_standalone_config_internet_interfaces | length > 0
+    - not ansible_check_mode
+
+- name: Permit Palo Alto update services
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    rule_name: "Allow Palo Alto Update Services"
+    description: "Allows access to Palo Alto Networks update services using App-ID."
+    source_zone: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    destination_zone: "{{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}"
+    source_ip:
+      - any
+    destination_ip:
+      - any
+    application: "{{ palo_alto_standalone_config_palo_alto_update_applications }}"
+    service:
+      - application-default
+    action: allow
+    log_end: true
+    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+    tag_name:
+      - "{{ palo_alto_standalone_config_allow_rule_tag }}"
+    location: top
+    vsys: vsys1
+    state: present
+  when:
+    - palo_alto_standalone_config_palo_alto_update_applications | length > 0
+    - palo_alto_standalone_config_internal_interfaces | length > 0
+    - palo_alto_standalone_config_internet_interfaces | length > 0
+    - not ansible_check_mode
+
+- name: Block outbound traffic to known bad IP lists
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    rule_name: "Block Outbound Known Bad IPs"
+    description: "Blocks internal clients from reaching Palo Alto predefined high-risk IP lists."
+    source_zone: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    destination_zone: "{{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}"
+    source_ip:
+      - any
+    destination_ip:
+      - panw-bulletproof-ip-list
+      - panw-highrisk-ip-list
+      - panw-known-ip-list
+      - panw-torexit-ip-list
+    application:
+      - any
+    service:
+      - any
+    action: drop
+    log_end: true
+    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+    tag_name:
+      - "{{ palo_alto_standalone_config_block_rule_tag }}"
+    location: top
+    vsys: vsys1
+    state: present
+  when:
+    - palo_alto_standalone_config_known_bad_lists_enabled | bool
+    - palo_alto_standalone_config_internal_interfaces | length > 0
+    - palo_alto_standalone_config_internet_interfaces | length > 0
+    - not ansible_check_mode
+
+- name: Block inbound traffic from known bad IP lists
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    rule_name: "Block Inbound Known Bad IPs"
+    description: "Blocks traffic sourced from Palo Alto predefined high-risk IP lists."
+    source_zone: "{{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}"
+    destination_zone:
+      - any
+    source_ip:
+      - panw-bulletproof-ip-list
+      - panw-highrisk-ip-list
+      - panw-known-ip-list
+      - panw-torexit-ip-list
+    destination_ip:
+      - any
+    application:
+      - any
+    service:
+      - any
+    action: drop
+    log_end: true
+    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+    tag_name:
+      - "{{ palo_alto_standalone_config_block_rule_tag }}"
+    location: top
+    vsys: vsys1
+    state: present
+  when:
+    - palo_alto_standalone_config_known_bad_lists_enabled | bool
+    - palo_alto_standalone_config_internet_interfaces | length > 0
+    - not ansible_check_mode
+
+- name: Block outbound traffic to high-risk regions
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    rule_name: "Block Outbound High Risk Regions"
+    description: >-
+      Blocks outbound sessions to high-risk regions identified in the Palo Alto
+      Networks best practice baseline.
+    source_zone: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    destination_zone: "{{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}"
+    source_ip:
+      - any
+    destination_ip: "{{ palo_alto_standalone_config_geo_blocked_regions }}"
+    application:
+      - any
+    service:
+      - any
+    action: drop
+    log_end: true
+    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+    tag_name:
+      - "{{ palo_alto_standalone_config_block_rule_tag }}"
+    location: top
+    vsys: vsys1
+    state: present
+  when:
+    - palo_alto_standalone_config_geo_blocking_enabled | bool
+    - palo_alto_standalone_config_geo_blocked_regions | length > 0
+    - palo_alto_standalone_config_internal_interfaces | length > 0
+    - palo_alto_standalone_config_internet_interfaces | length > 0
+    - not ansible_check_mode
+
+- name: Block unsanctioned applications
+  paloaltonetworks.panos.panos_security_rule:
+    provider: "{{ current_firewall_provider }}"
+    rule_name: "Block Unsanctioned Apps"
+    description: >-
+      Blocks unsanctioned applications. QUIC is included directly in the rule
+      to satisfy Palo Alto best practice assessment guidance.
+    source_zone: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    destination_zone: "{{ palo_alto_standalone_config_internet_interfaces | map(attribute='zone') | unique | list }}"
+    source_ip:
+      - any
+    destination_ip:
+      - any
+    application:
+      - quic
+      - Unsanctioned_Apps
+    service:
+      - any
+    action: drop
+    log_end: true
+    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+    tag_name:
+      - "{{ palo_alto_standalone_config_block_rule_tag }}"
+    location: top
+    vsys: vsys1
+    state: present
+  when:
+    - palo_alto_standalone_config_internal_interfaces | length > 0
+    - palo_alto_standalone_config_internet_interfaces | length > 0
+    - not ansible_check_mode

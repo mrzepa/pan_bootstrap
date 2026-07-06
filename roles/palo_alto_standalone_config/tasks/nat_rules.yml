@@ -1,0 +1,59 @@
+---
+- name: Reset outbound NAT tag list
+  ansible.builtin.set_fact:
+    palo_alto_standalone_config_outbound_nat_tags:
+      - "{{ palo_alto_standalone_config_nat_rule_tag | default('NAT') }}"
+  when: not ansible_check_mode
+
+- name: Build outbound NAT tag list
+  ansible.builtin.set_fact:
+    palo_alto_standalone_config_outbound_nat_tags: >-
+      {{ (palo_alto_standalone_config_outbound_nat_tags + (item.tags | default([]))) | unique | list }}
+  loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: not ansible_check_mode
+
+- name: Create outbound NAT rule tags
+  paloaltonetworks.panos.panos_tag_object:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item }}"
+    color: "{{ 'orange' if item == (palo_alto_standalone_config_nat_rule_tag | default('NAT')) else 'azure blue' }}"
+    comments: "Tag referenced by bootstrap-generated NAT policy rules."
+    vsys: vsys1
+    state: present
+  loop: "{{ palo_alto_standalone_config_outbound_nat_tags | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - not ansible_check_mode
+    - palo_alto_standalone_config_outbound_nat_tags | default([]) | length > 0
+
+- name: Create outbound NAT rules
+  paloaltonetworks.panos.panos_nat_rule2:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item.nat_rule_name | default('PAT-' ~ item.name | replace('/', '-')) }}"
+    description: "{{ item.description | default('NAT internal traffic out ' ~ item.name) }}"
+    nat_type: ipv4
+    from_zones: "{{ palo_alto_standalone_config_internal_interfaces | map(attribute='zone') | unique | list }}"
+    to_zones:
+      - "{{ item.zone }}"
+    to_interface: "{{ item.name }}"
+    service: any
+    source_addresses:
+      - any
+    destination_addresses:
+      - any
+    source_translation_type: dynamic-ip-and-port
+    source_translation_address_type: interface-address
+    source_translation_interface: "{{ item.name }}"
+    tags: "{{ ((item.tags | default([])) + [palo_alto_standalone_config_nat_rule_tag | default('NAT')]) | unique | list }}"
+    group_tag: "{{ palo_alto_standalone_config_nat_rule_tag | default('NAT') }}"
+    state: present
+    vsys: vsys1
+  loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - not ansible_check_mode
+    - palo_alto_standalone_config_internal_interfaces | length > 0

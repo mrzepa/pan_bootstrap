@@ -1,0 +1,12 @@
+---
+- name: Create unsanctioned applications group
+  paloaltonetworks.panos.panos_application_group:
+    provider: "{{ current_firewall_provider }}"
+    name: Unsanctioned_Apps
+    value:
+      - dns-over-https
+      - dns-over-tls
+      - bittorrent
+    vsys: vsys1
+    state: present
+  when: not ansible_check_mode

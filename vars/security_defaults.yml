@@ -107,64 +107,52 @@ security_default_profile_groups:
     file_blocking: FileBlocking-Alert-All
     wildfire: Wildfire-Internal
     state: present
-security_default_log_forwarding_profiles: []
+security_default_log_forwarding_profiles:
+  - name: default
+    spec:
+      match-list:
+        entry:
+          - "@name": Traffic Logs
+            log-type: traffic
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
+          - "@name": Threat Logs
+            log-type: threat
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
+          - "@name": Auth Logs
+            log-type: auth
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
+          - "@name": Data Logs
+            log-type: data
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
+          - "@name": Decryption Logs
+            log-type: decryption
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
+          - "@name": Tunnel Logs
+            log-type: tunnel
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
+          - "@name": URL Logs
+            log-type: url
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
+          - "@name": Wildfire Logs
+            log-type: wildfire
+            filter: All Logs
+            send-to-panorama: "no"
+            quarantine: "no"
 security_default_config_elements:
-  - name: log_forwarding_profiles_default
-    category: log_forwarding_profiles
-    xpath: /config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/log-settings/profiles
-    element: |
-      <entry name="default">
-        <match-list>
-          <entry name="Traffic Logs">
-            <log-type>traffic</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-          <entry name="Threat Logs">
-            <log-type>threat</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-          <entry name="Auth Logs">
-            <log-type>auth</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-          <entry name="Data Logs">
-            <log-type>data</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-          <entry name="Decryption Logs">
-            <log-type>decryption</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-          <entry name="Tunnel Logs">
-            <log-type>tunnel</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-          <entry name="URL Logs">
-            <log-type>url</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-          <entry name="Wildfire Logs">
-            <log-type>wildfire</log-type>
-            <filter>All Logs</filter>
-            <send-to-panorama>no</send-to-panorama>
-            <quarantine>no</quarantine>
-          </entry>
-        </match-list>
-      </entry>
   - name: certificate_profiles_Google-WR3-Profile
     category: certificate_profiles
     xpath: /config/shared/certificate-profile

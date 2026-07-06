@@ -1,0 +1,16 @@
+---
+- name: Apply log forwarding profiles with REST API
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Objects/LogForwardingProfiles
+    name: "{{ item.name }}"
+    spec: "{{ item.spec }}"
+    create_with_name: true
+  loop: "{{ security_default_log_forwarding_profiles | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode

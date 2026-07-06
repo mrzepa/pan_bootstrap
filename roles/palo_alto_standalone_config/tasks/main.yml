@@ -151,19 +151,7 @@
     - not ansible_check_mode
 
 - name: Apply log forwarding profiles
-  paloaltonetworks.panos.panos_log_forwarding_profile:
-    provider: "{{ current_firewall_provider }}"
-    name: "{{ item.name }}"
-    description: "{{ item.description | default(omit) }}"
-    enhanced_logging: "{{ item.enhanced_logging | default(omit) }}"
-    state: "{{ item.state | default('present') }}"
-    vsys: "{{ item.vsys | default('vsys1') }}"
-  loop: "{{ security_default_log_forwarding_profiles | default([]) }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when:
-    - palo_alto_standalone_config_security_defaults_enabled | bool
-    - not ansible_check_mode
+  ansible.builtin.include_tasks: log_forwarding_profiles.yml
 
 - name: Apply standalone policy baseline
   ansible.builtin.include_tasks: policy_baseline.yml

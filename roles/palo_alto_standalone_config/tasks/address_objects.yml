@@ -1,0 +1,26 @@
+---
+- name: Create DNS and NTP destination address objects
+  paloaltonetworks.panos.panos_address_object:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    address_type: "{{ 'ip-netmask' if item.value | regex_search('^\\d+\\.\\d+\\.\\d+\\.\\d+(\\/\\d+)?$') else 'fqdn' }}"
+    description: "{{ item.description }}"
+    vsys: vsys1
+    state: present
+  loop:
+    - name: Bootstrap-DNS-Primary
+      value: "{{ palo_alto_standalone_config_system_dns_primary }}"
+      description: "Primary DNS resolver configured by bootstrap."
+    - name: Bootstrap-DNS-Secondary
+      value: "{{ palo_alto_standalone_config_system_dns_secondary }}"
+      description: "Secondary DNS resolver configured by bootstrap."
+    - name: Bootstrap-NTP-Primary
+      value: "{{ palo_alto_standalone_config_system_ntp_primary }}"
+      description: "Primary NTP server configured by bootstrap."
+    - name: Bootstrap-NTP-Secondary
+      value: "{{ palo_alto_standalone_config_system_ntp_secondary }}"
+      description: "Secondary NTP server configured by bootstrap."
+  loop_control:
+    label: "{{ item.name }} -> {{ item.value }}"
+  when: not ansible_check_mode

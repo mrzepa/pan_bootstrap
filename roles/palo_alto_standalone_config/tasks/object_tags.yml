@@ -1,0 +1,28 @@
+---
+- name: Create policy rule tags
+  paloaltonetworks.panos.panos_tag_object:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item.name }}"
+    color: "{{ item.color }}"
+    comments: "{{ item.comments }}"
+    vsys: vsys1
+    state: present
+  loop:
+    - name: "{{ palo_alto_standalone_config_block_rule_tag }}"
+      color: red
+      comments: "Groups default bootstrap block policy rules."
+    - name: "{{ palo_alto_standalone_config_default_rule_tag }}"
+      color: gray
+      comments: "Groups default security policy override rules."
+    - name: "{{ palo_alto_standalone_config_allow_rule_tag }}"
+      color: green
+      comments: "Groups default bootstrap allow policy rules."
+    - name: "{{ palo_alto_standalone_config_nat_rule_tag }}"
+      color: orange
+      comments: "Groups bootstrap-generated NAT policy rules."
+    - name: "{{ palo_alto_standalone_config_sdwan_rule_tag }}"
+      color: azure blue
+      comments: "Groups bootstrap-generated SD-WAN policy rules."
+  loop_control:
+    label: "{{ item.name }}"
+  when: not ansible_check_mode
