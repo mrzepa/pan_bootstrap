@@ -13,7 +13,7 @@ The role owns local logical router creation, network interfaces and routes, stan
 - `address_objects.yml`: address objects used by baseline policy rules.
 - `application_objects.yml`: application groups used by baseline policy rules.
 - `security_default_custom_objects.yml`: structured config or REST-backed security default objects that do not have clean first-class collection module support.
-- `log_forwarding_profiles.yml`: log forwarding profiles exported from `vars/security_defaults.yml`.
+- `log_forwarding_profiles.yml`: log forwarding profiles defined in `vars/security_defaults.yml`.
 - `nat_rules.yml`: outbound PAT rules.
 - `security_rules.yml`: reserved default security rule overrides and baseline security policy rules.
 
@@ -102,13 +102,7 @@ If the collection does not support an object cleanly, prefer REST with `panos_re
 
 Do not add raw XML to YAML files. Store unsupported objects as structured dictionaries under `security_default_config_entries` or `security_default_rest_objects`.
 
-To refresh exported security defaults from the lab firewall:
-
-```bash
-FW_USERNAME=admin FW_PASSWORD='change-me' .venv/bin/python tools/export_security_defaults.py --host 192.168.4.62
-```
-
-After refreshing, review the generated YAML before committing it.
+These defaults are maintained as project data. Do not add workflows that regenerate them from a firewall.
 
 ## Network Input Shape
 
@@ -169,4 +163,3 @@ When adding a new capability:
 3. If REST is not available or cannot model the setting, use a structured custom module.
 
 Avoid raw XML in Ansible YAML. The custom modules can talk XML API internally, but role YAML should remain structured and readable.
-

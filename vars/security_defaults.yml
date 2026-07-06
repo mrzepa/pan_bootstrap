@@ -1,6 +1,5 @@
 ---
-# Generated from lab firewall 192.168.4.62.
-# Re-run tools/export_security_defaults.py after updating the source objects.
+# Standalone firewall security defaults maintained by this project.
 security_default_certificates:
   - name: Google-WR3
     file: files/certificates/Google-WR3.pem

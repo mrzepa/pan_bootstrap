@@ -242,13 +242,7 @@ The role applies:
 
 Certificates are checked before import. The play fails if a certificate PEM is expired. Replace expired roots or intermediates with current certificates from the issuing CA before retrying.
 
-To refresh the exported defaults from a lab firewall:
-
-```bash
-FW_USERNAME=admin FW_PASSWORD='change-me' .venv/bin/python tools/export_security_defaults.py --host 192.168.4.62
-```
-
-Review generated YAML before committing it.
+These defaults are maintained as project data. Add or change defaults in YAML using supported collection modules first, REST-backed custom objects second, and structured config custom modules only when needed.
 
 ## Web GUI
 
@@ -289,7 +283,7 @@ Each role has its own README with role-specific details.
 Useful development checks:
 
 ```bash
-python3 -m py_compile library/*.py tools/*.py
+python3 -m py_compile library/*.py
 ANSIBLE_LOCAL_TEMP=.ansible/tmp .venv/bin/ansible-playbook playbooks/bootstrap_firewalls.yml --syntax-check
 ANSIBLE_LOCAL_TEMP=.ansible/tmp .venv/bin/ansible-lint
 ```
