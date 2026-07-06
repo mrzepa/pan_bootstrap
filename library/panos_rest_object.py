@@ -41,6 +41,12 @@ options:
       - REST object entry spec. C(@name), C(@location), and C(@vsys) are added automatically when omitted.
     type: dict
     required: true
+  create_with_name:
+    description:
+      - Include C(name) as a query parameter on create requests.
+      - Some PAN-OS REST endpoints, including C(Policies/SecurityRules), require this.
+    type: bool
+    default: false
   api_version:
     type: str
     default: v11.2
@@ -181,7 +187,11 @@ class PanosRestApi:
         return entries[0] if entries else None
 
     def create(self, spec):
-        return self.request("POST", include_name=False, payload={"entry": spec})
+        return self.request(
+            "POST",
+            include_name=self.module.params["create_with_name"],
+            payload={"entry": spec},
+        )
 
     def update(self, spec):
         return self.request("PUT", payload={"entry": spec})
@@ -209,6 +219,7 @@ def run_module():
             "endpoint": {"type": "str", "required": True},
             "name": {"type": "str", "required": True},
             "spec": {"type": "dict", "required": True},
+            "create_with_name": {"type": "bool", "default": False},
             "api_version": {"type": "str", "default": "v11.2"},
             "location": {"type": "str", "default": "vsys"},
             "vsys": {"type": "str", "default": "vsys1"},

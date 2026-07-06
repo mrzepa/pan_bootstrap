@@ -20,7 +20,7 @@ palo_alto_standalone_config_geo_blocked_regions:
   - KP
   - NG
   - RU
-palo_alto_standalone_config_security_profile_group: default
+palo_alto_standalone_config_security_profile_group: "Internal Security Profile Group"
 palo_alto_standalone_config_log_forwarding_profile: default
 palo_alto_standalone_config_system_dns_primary: 1.1.1.1
 palo_alto_standalone_config_system_dns_secondary: 1.0.0.1
@@ -34,4 +34,4 @@ palo_alto_standalone_config_palo_alto_update_applications:
 palo_alto_standalone_config_interface_management_profile: PING
 palo_alto_standalone_config_lldp_profile: LLDP-PR
 palo_alto_standalone_config_internal_zone_protection_profile: Internal-Zone-Protect
-palo_alto_standalone_config_internet_zone_protection_profile: Internet-ZoneProtect-Protect
+palo_alto_standalone_config_internet_zone_protection_profile: Internet-Zone-Protect

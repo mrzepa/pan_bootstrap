@@ -291,34 +291,25 @@
     - not ansible_check_mode
 
 - name: Override default security rules
-  panos_rest_object:
-    ip_address: "{{ firewall_info.staging_ip }}"
-    username: "{{ firewall_username }}"
-    password: "{{ firewall_password }}"
-    endpoint: Policies/SecurityRules
-    name: "{{ item.name }}"
-    spec: "{{ item.spec }}"
-  loop:
-    - name: intrazone-default
-      spec:
-        action: allow
-        log-end: "yes"
-        log-setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
-        tag:
-          member:
-            - "{{ palo_alto_standalone_config_default_rule_tag }}"
-        profile-setting:
-          group:
-            member:
-              - "{{ palo_alto_standalone_config_security_profile_group }}"
-    - name: interzone-default
-      spec:
-        action: drop
-        log-end: "yes"
-        log-setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
-        tag:
-          member:
-            - "{{ palo_alto_standalone_config_default_rule_tag }}"
-  loop_control:
-    label: "{{ item.name }}"
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ current_firewall_provider }}"
+    xpath: /config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/default-security-rules/rules
+    element: |
+      <entry name="intrazone-default">
+        <action>allow</action>
+        <log-start>no</log-start>
+        <log-end>yes</log-end>
+        <profile-setting>
+          <group>
+            <member>{{ palo_alto_standalone_config_security_profile_group }}</member>
+          </group>
+        </profile-setting>
+        <log-setting>{{ palo_alto_standalone_config_log_forwarding_profile }}</log-setting>
+      </entry>
+      <entry name="interzone-default">
+        <action>drop</action>
+        <log-start>no</log-start>
+        <log-end>yes</log-end>
+      </entry>
+    state: present
   when: not ansible_check_mode
