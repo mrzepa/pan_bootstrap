@@ -93,7 +93,7 @@
       hostname: "{{ firewall_info.hostname }}"
   when: not ansible_check_mode
 
-- name: Enable advanced routing
+- name: Set advanced routing state
   panos_advanced_routing:
     ip_address: "{{ firewall_info.staging_ip }}"
     username: "{{ firewall_username }}"

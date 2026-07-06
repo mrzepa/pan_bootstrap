@@ -4,7 +4,7 @@
 panos_version: "12.1.7-h1"
 firewall_username: admin
 
-advanced_routing_enabled: true
+advanced_routing_enabled: false
 logical_router_name: default
 
 add_to_panorama: false

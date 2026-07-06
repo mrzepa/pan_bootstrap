@@ -23,7 +23,7 @@
         bootstrap_firewalls: "{{ bootstrap_input.firewalls | default([]) }}"
         bootstrap_deployment_mode: "{{ bootstrap_input.deployment_mode | default('standalone') }}"
         bootstrap_add_to_panorama: "{{ bootstrap_input.add_to_panorama | default(false) | bool }}"
-        bootstrap_advanced_routing_enabled: "{{ bootstrap_input.advanced_routing_enabled | default(advanced_routing_enabled | default(true)) | bool }}"
+        bootstrap_advanced_routing_enabled: "{{ bootstrap_input.advanced_routing_enabled | default(advanced_routing_enabled | default(false)) | bool }}"
         bootstrap_logical_router_name: "{{ bootstrap_input.logical_router_name | default(logical_router_name | default('default')) }}"
         bootstrap_network: "{{ bootstrap_input.network | default({}) }}"
         bootstrap_system_settings: "{{ bootstrap_input.system_settings | default({}) }}"

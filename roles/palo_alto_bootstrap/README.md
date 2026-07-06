@@ -29,9 +29,8 @@ Advanced routing is handled here instead of inside the standalone role because i
 - `firewall_username` / `firewall_password`: local firewall credentials.
 - `add_to_panorama`: selects standalone or Panorama-managed path.
 - `palo_alto_bootstrap_telemetry_region`: telemetry/LCAAS region, default `ca`.
-- `palo_alto_bootstrap_advanced_routing_enabled`: enables advanced routing, default `true`.
+- `palo_alto_bootstrap_advanced_routing_enabled`: enables advanced routing when set to `true`, default `false`.
 
 ## Notes
 
 When advanced routing is enabled, this process does not migrate virtual router configuration into a logical router. Use the PAN-OS GUI if an existing virtual router must be converted and preserved.
-
