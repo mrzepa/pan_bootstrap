@@ -253,7 +253,7 @@ def export_entries(api: PanosXmlApi, certificate_dir: Path) -> dict[str, list[di
         "security_default_external_dynamic_lists": [],
         "security_default_profile_groups": [],
         "security_default_log_forwarding_profiles": [],
-        "security_default_config_elements": [],
+        "security_default_config_entries": [],
     }
     for parent in EXPORT_PARENTS:
         root = api.get(parent["xpath"])
@@ -276,14 +276,12 @@ def export_entries(api: PanosXmlApi, certificate_dir: Path) -> dict[str, list[di
                 output["security_default_log_forwarding_profiles"].append(export_log_forwarding_profile(entry))
                 continue
             clean_xml(entry)
-            indent_xml(entry)
-            element = ET.tostring(entry, encoding="unicode").strip() + "\n"
-            output["security_default_config_elements"].append(
+            output["security_default_config_entries"].append(
                 {
-                    "name": f"{parent['category']}_{entry_name(name)}",
+                    "name": name,
                     "category": parent["category"],
                     "xpath": parent["xpath"],
-                    "element": LiteralString(element),
+                    "spec": xml_entry_to_spec(entry),
                 }
             )
     return output
@@ -324,8 +322,8 @@ def main() -> int:
     print(f"external_dynamic_lists: {len(output['security_default_external_dynamic_lists'])}")
     print(f"profile_groups: {len(output['security_default_profile_groups'])}")
     print(f"log_forwarding_profiles: {len(output['security_default_log_forwarding_profiles'])}")
-    for category in sorted({item["category"] for item in output["security_default_config_elements"]}):
-        count = sum(1 for item in output["security_default_config_elements"] if item["category"] == category)
+    for category in sorted({item["category"] for item in output["security_default_config_entries"]}):
+        count = sum(1 for item in output["security_default_config_entries"] if item["category"] == category)
         print(f"{category}: {count}")
     return 0
 

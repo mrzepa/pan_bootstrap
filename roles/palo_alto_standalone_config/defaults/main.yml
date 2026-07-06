@@ -10,7 +10,6 @@ palo_alto_standalone_config_network: {}
 palo_alto_standalone_config_policy_baseline_enabled: true
 palo_alto_standalone_config_known_bad_lists_enabled: true
 palo_alto_standalone_config_block_rule_tag: BLOCK
-palo_alto_standalone_config_default_rule_tag: DEFAULT
 palo_alto_standalone_config_allow_rule_tag: ALLOW
 palo_alto_standalone_config_nat_rule_tag: NAT
 palo_alto_standalone_config_sdwan_rule_tag: SDWAN

@@ -1,4 +1,11 @@
 ---
+- name: Create PING interface management profile
+  paloaltonetworks.panos.panos_management_profile:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ palo_alto_standalone_config_interface_management_profile }}"
+    ping: true
+    state: present
+
 - name: Create zone protection profiles
   panos_rest_object:
     ip_address: "{{ firewall_info.staging_ip }}"
@@ -62,22 +69,20 @@
     label: "{{ item }}"
 
 - name: Create LLDP profile
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/network/profiles/lldp-profile"
-    element: |
-      <entry name="{{ palo_alto_standalone_config_lldp_profile }}">
-        <option-tlvs>
-          <management-address>
-            <enabled>no</enabled>
-          </management-address>
-          <port-description>yes</port-description>
-          <system-name>yes</system-name>
-          <system-description>yes</system-description>
-          <system-capabilities>yes</system-capabilities>
-        </option-tlvs>
-      </entry>
-    state: present
+    name: "{{ palo_alto_standalone_config_lldp_profile }}"
+    spec:
+      option-tlvs:
+        management-address:
+          enabled: "no"
+        port-description: "yes"
+        system-name: "yes"
+        system-description: "yes"
+        system-capabilities: "yes"
 
 - name: Enable global LLDP
   panos_rest_object:
@@ -91,34 +96,31 @@
       enable: "yes"
 
 - name: Apply zone protection profiles
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone"
-    element: |
-      <entry name="{{ item.name }}">
-        <network>
-          <zone-protection-profile>{{ item.profile }}</zone-protection-profile>
-        </network>
-      </entry>
-    state: present
+    name: "{{ item.name }}"
+    spec:
+      network:
+        zone-protection-profile: "{{ item.profile }}"
   loop: "{{ palo_alto_standalone_config_zone_profile_assignments }}"
   loop_control:
     label: "{{ item.name }} -> {{ item.profile }}"
 
 - name: Apply LLDP profile to non-internet interfaces
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
-    element: |
-      <entry name="{{ item.name }}">
-        <layer3>
-          <lldp>
-            <enable>yes</enable>
-            <profile>{{ palo_alto_standalone_config_lldp_profile }}</profile>
-          </lldp>
-        </layer3>
-      </entry>
-    state: present
+    name: "{{ item.name }}"
+    spec:
+      layer3:
+        lldp:
+          enable: "yes"
+          profile: "{{ palo_alto_standalone_config_lldp_profile }}"
   loop: "{{ palo_alto_standalone_config_internal_interfaces }}"
   loop_control:
     label: "{{ item.name }}"

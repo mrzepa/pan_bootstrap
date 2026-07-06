@@ -59,13 +59,14 @@
     - ha
 
 - name: Configure HA election settings
-  paloaltonetworks.panos.panos_type_cmd:
-    provider: "{{ current_firewall_provider }}"
-    cmd: set
+  panos_config_set:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/group/election-option"
-    element: >-
-      <device-priority>{{ palo_alto_ha_local_priority }}</device-priority>
-      <preemptive>{{ 'yes' if ha_settings.preemptive | default(palo_alto_ha_preemptive) | bool else 'no' }}</preemptive>
+    spec:
+      device-priority: "{{ palo_alto_ha_local_priority }}"
+      preemptive: "{{ 'yes' if ha_settings.preemptive | default(palo_alto_ha_preemptive) | bool else 'no' }}"
   when: not ansible_check_mode
   tags:
     - ha

@@ -1,5 +1,5 @@
 ---
-- name: Apply structured security profile entries
+- name: Apply structured security default config entries
   panos_config_entry:
     ip_address: "{{ firewall_info.staging_ip }}"
     username: "{{ firewall_username }}"
@@ -14,7 +14,7 @@
     - palo_alto_standalone_config_security_defaults_enabled | bool
     - not ansible_check_mode
 
-- name: Apply REST-backed security default objects
+- name: Apply REST-backed security default custom objects
   panos_rest_object:
     ip_address: "{{ firewall_info.staging_ip }}"
     username: "{{ firewall_username }}"

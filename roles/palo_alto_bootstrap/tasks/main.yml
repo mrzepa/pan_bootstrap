@@ -70,25 +70,27 @@
     - not ansible_check_mode
 
 - name: Set telemetry region
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_set:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system"
-    element: |
-      <device-telemetry>
-        <device-health-performance>yes</device-health-performance>
-        <product-usage>yes</product-usage>
-        <threat-prevention>yes</threat-prevention>
-        <region>{{ palo_alto_bootstrap_telemetry_region }}</region>
-      </device-telemetry>
-    state: present
+    spec:
+      device-telemetry:
+        device-health-performance: "yes"
+        product-usage: "yes"
+        threat-prevention: "yes"
+        region: "{{ palo_alto_bootstrap_telemetry_region }}"
   when: not ansible_check_mode
 
 - name: Set hostname
-  paloaltonetworks.panos.panos_type_cmd:
-    provider: "{{ current_firewall_provider }}"
-    cmd: set
+  panos_config_set:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system"
-    element: "<hostname>{{ firewall_info.hostname }}</hostname>"
+    spec:
+      hostname: "{{ firewall_info.hostname }}"
   when: not ansible_check_mode
 
 - name: Enable advanced routing
@@ -162,11 +164,13 @@
   when: not ansible_check_mode
 
 - name: Disable SIP ALG
-  paloaltonetworks.panos.panos_type_cmd:
-    provider: "{{ current_firewall_provider }}"
-    cmd: set
+  panos_config_set:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/shared/alg-override/application/entry[@name='sip']"
-    element: "<alg-disabled>yes</alg-disabled>"
+    spec:
+      alg-disabled: "yes"
   when: not ansible_check_mode
 
 - name: Remove default override for Threats scheduler

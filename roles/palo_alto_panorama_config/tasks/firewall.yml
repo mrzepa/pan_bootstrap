@@ -1,10 +1,12 @@
 ---
 - name: Connect firewall to Panorama
-  paloaltonetworks.panos.panos_type_cmd:
-    provider: "{{ current_firewall_provider }}"
-    cmd: set
+  panos_config_set:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/panorama/local-panorama"
-    element: "<panorama-server>{{ panorama_settings.public_fqdn }}</panorama-server>"
+    spec:
+      panorama-server: "{{ panorama_settings.public_fqdn }}"
   when: not ansible_check_mode
 
 - name: Get Panorama auth key

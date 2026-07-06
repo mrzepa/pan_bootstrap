@@ -24,14 +24,6 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Create PING interface management profile
-  paloaltonetworks.panos.panos_management_profile:
-    provider: "{{ current_firewall_provider }}"
-    name: "{{ palo_alto_standalone_config_interface_management_profile }}"
-    ping: true
-    state: present
-  when: not ansible_check_mode
-
 - name: Configure internet interfaces
   paloaltonetworks.panos.panos_interface:
     provider: "{{ current_firewall_provider }}"
@@ -77,19 +69,17 @@
   when: not ansible_check_mode
 
 - name: Configure PPPoE internet interfaces
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
-    element: |
-      <entry name="{{ item.name }}">
-        <layer3>
-          <pppoe>
-            <username>{{ item.pppoe_username }}</username>
-            <password>{{ item.pppoe_password }}</password>
-          </pppoe>
-        </layer3>
-      </entry>
-    state: present
+    name: "{{ item.name }}"
+    spec:
+      layer3:
+        pppoe:
+          username: "{{ item.pppoe_username }}"
+          password: "{{ item.pppoe_password }}"
   loop: "{{ palo_alto_standalone_config_internet_interfaces }}"
   loop_control:
     label: "{{ item.name }}"
@@ -98,8 +88,8 @@
     - item.address_type | default('static') == 'pppoe'
     - not ansible_check_mode
 
-- name: Configure standalone protection and LLDP profiles
-  ansible.builtin.include_tasks: profile_baseline.yml
+- name: Configure standalone network profiles
+  ansible.builtin.include_tasks: network_profiles.yml
   when: not ansible_check_mode
 
 - name: Configure standalone SD-WAN

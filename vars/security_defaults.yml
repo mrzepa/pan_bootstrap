@@ -152,7 +152,6 @@ security_default_log_forwarding_profiles:
             filter: All Logs
             send-to-panorama: 'no'
             quarantine: 'no'
-security_default_config_elements: []
 security_default_config_entries:
   - name: Google-WR3-Profile
     category: certificate_profiles

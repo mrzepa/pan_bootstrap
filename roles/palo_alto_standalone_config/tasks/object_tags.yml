@@ -26,3 +26,33 @@
   loop_control:
     label: "{{ item.name }}"
   when: not ansible_check_mode
+
+- name: Reset outbound NAT tag list
+  ansible.builtin.set_fact:
+    palo_alto_standalone_config_outbound_nat_tags:
+      - "{{ palo_alto_standalone_config_nat_rule_tag | default('NAT') }}"
+  when: not ansible_check_mode
+
+- name: Build outbound NAT tag list
+  ansible.builtin.set_fact:
+    palo_alto_standalone_config_outbound_nat_tags: >-
+      {{ (palo_alto_standalone_config_outbound_nat_tags + (item.tags | default([]))) | unique | list }}
+  loop: "{{ palo_alto_standalone_config_internet_interfaces | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: not ansible_check_mode
+
+- name: Create outbound NAT rule tags
+  paloaltonetworks.panos.panos_tag_object:
+    provider: "{{ current_firewall_provider }}"
+    name: "{{ item }}"
+    color: "{{ 'orange' if item == (palo_alto_standalone_config_nat_rule_tag | default('NAT')) else 'azure blue' }}"
+    comments: "Tag referenced by bootstrap-generated NAT policy rules."
+    vsys: vsys1
+    state: present
+  loop: "{{ palo_alto_standalone_config_outbound_nat_tags | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - not ansible_check_mode
+    - palo_alto_standalone_config_outbound_nat_tags | default([]) | length > 0

@@ -23,37 +23,28 @@
   when: not ansible_check_mode
 
 - name: Configure dynamic update schedules
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_set:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: /config/devices/entry[@name='localhost.localdomain']/deviceconfig/system
-    element: |
-      <update-schedule>
-        <threats>
-          <recurring>
-            <daily>
-              <at>{{ palo_alto_standalone_config_dynamic_update_schedule_application_threats_at }}</at>
-              <action>download-and-install</action>
-            </daily>
-            <threshold>{{ palo_alto_standalone_config_dynamic_update_schedule_new_app_threshold_hours }}</threshold>
-          </recurring>
-        </threats>
-        <anti-virus>
-          <recurring>
-            <hourly>
-              <at>{{ palo_alto_standalone_config_dynamic_update_schedule_anti_virus_at }}</at>
-              <action>download-and-install</action>
-            </hourly>
-          </recurring>
-        </anti-virus>
-        <wildfire>
-          <recurring>
-            <every-min>
-              <action>download-and-install</action>
-            </every-min>
-          </recurring>
-        </wildfire>
-      </update-schedule>
-    state: present
+    spec:
+      update-schedule:
+        threats:
+          recurring:
+            daily:
+              at: "{{ palo_alto_standalone_config_dynamic_update_schedule_application_threats_at }}"
+              action: download-and-install
+            threshold: "{{ palo_alto_standalone_config_dynamic_update_schedule_new_app_threshold_hours }}"
+        anti-virus:
+          recurring:
+            hourly:
+              at: "{{ palo_alto_standalone_config_dynamic_update_schedule_anti_virus_at }}"
+              action: download-and-install
+        wildfire:
+          recurring:
+            every-min:
+              action: download-and-install
   when:
     - palo_alto_standalone_config_dynamic_update_schedule_enabled | bool
     - not ansible_check_mode
@@ -96,8 +87,8 @@
     - palo_alto_standalone_config_security_defaults_enabled | bool
     - not ansible_check_mode
 
-- name: Apply security default profiles
-  ansible.builtin.include_tasks: security_profile_entries.yml
+- name: Apply security default custom objects
+  ansible.builtin.include_tasks: security_default_custom_objects.yml
 
 - name: Apply External Dynamic Lists
   paloaltonetworks.panos.panos_edl:
@@ -143,8 +134,26 @@
 - name: Apply log forwarding profiles
   ansible.builtin.include_tasks: log_forwarding_profiles.yml
 
-- name: Apply standalone policy baseline
-  ansible.builtin.include_tasks: policy_baseline.yml
+- name: Create policy object tags
+  ansible.builtin.include_tasks: object_tags.yml
+  when:
+    - palo_alto_standalone_config_policy_baseline_enabled | bool
+    - palo_alto_standalone_config_network | length > 0
+
+- name: Create baseline address objects
+  ansible.builtin.include_tasks: address_objects.yml
+  when:
+    - palo_alto_standalone_config_policy_baseline_enabled | bool
+    - palo_alto_standalone_config_network | length > 0
+
+- name: Create baseline application objects
+  ansible.builtin.include_tasks: application_objects.yml
+  when:
+    - palo_alto_standalone_config_policy_baseline_enabled | bool
+    - palo_alto_standalone_config_network | length > 0
+
+- name: Create baseline security rules
+  ansible.builtin.include_tasks: security_rules.yml
   when:
     - palo_alto_standalone_config_policy_baseline_enabled | bool
     - palo_alto_standalone_config_network | length > 0

@@ -64,24 +64,21 @@
   when: not ansible_check_mode
 
 - name: Enable SD-WAN link settings on internet interfaces
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
-    element: |
-      <entry name="{{ item.name }}">
-        <layer3>
-          <sdwan-link-settings>
-            <upstream-nat>
-              <enable>no</enable>
-              <static-ip/>
-            </upstream-nat>
-            <enable>yes</enable>
-            <sdwan-interface-profile>ISP{{ ansible_loop.index }}</sdwan-interface-profile>
-            <ipv6-enable>no</ipv6-enable>
-          </sdwan-link-settings>
-        </layer3>
-      </entry>
-    state: present
+    name: "{{ item.name }}"
+    spec:
+      layer3:
+        sdwan-link-settings:
+          upstream-nat:
+            enable: "no"
+            static-ip: {}
+          enable: "yes"
+          sdwan-interface-profile: "ISP{{ ansible_loop.index }}"
+          ipv6-enable: "no"
   loop: "{{ palo_alto_sdwan_internet_interfaces }}"
   loop_control:
     extended: true
@@ -89,20 +86,18 @@
   when: not ansible_check_mode
 
 - name: Add SD-WAN gateway to static internet interface addresses
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
     xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
-    element: |
-      <entry name="{{ item.name }}">
-        <layer3>
-          <ip>
-            <entry name="{{ item.ip_address }}">
-              <sdwan-gateway>{{ item.default_gateway }}</sdwan-gateway>
-            </entry>
-          </ip>
-        </layer3>
-      </entry>
-    state: present
+    name: "{{ item.name }}"
+    spec:
+      layer3:
+        ip:
+          entry:
+            - "@name": "{{ item.ip_address }}"
+              sdwan-gateway: "{{ item.default_gateway }}"
   loop: "{{ palo_alto_sdwan_internet_interfaces }}"
   loop_control:
     label: "{{ item.name }}"
@@ -113,22 +108,15 @@
     - not ansible_check_mode
 
 - name: Create SD-WAN interface
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
-    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface"
-    element: |
-      <sdwan>
-        <units>
-          <entry name="{{ palo_alto_sdwan_interface_name }}">
-            <interface>
-      {% for sdwan_interface in palo_alto_sdwan_internet_interfaces %}
-              <member>{{ sdwan_interface.name }}</member>
-      {% endfor %}
-            </interface>
-          </entry>
-        </units>
-      </sdwan>
-    state: present
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/interface/sdwan/units"
+    name: "{{ palo_alto_sdwan_interface_name }}"
+    spec:
+      interface:
+        member: "{{ palo_alto_sdwan_internet_interfaces | map(attribute='name') | list }}"
   when: not ansible_check_mode
 
 - name: Create SD-WAN default route in logical router

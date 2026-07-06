@@ -43,22 +43,14 @@
     - item.serial | string | trim | length > 0
 
 - name: Add firewalls to device group
-  vars:
-    palo_alto_panorama_config_xpath: >-
+  panos_config_entry:
+    ip_address: "{{ palo_alto_panorama_config_settings.host }}"
+    api_key: "{{ palo_alto_panorama_config_settings.api_key }}"
+    xpath: >-
       /config/devices/entry[@name='localhost.localdomain']/device-group/entry[@name='{{
       palo_alto_panorama_config_settings.device_group }}']/devices
-    palo_alto_panorama_config_element: "<entry name='{{ item.item.serial }}'/>"
-    palo_alto_panorama_config_set_url: >-
-      https://{{ palo_alto_panorama_config_settings.host }}/api/?type=config&action=set&xpath={{
-      palo_alto_panorama_config_xpath | urlencode }}&element={{ palo_alto_panorama_config_element | urlencode }}&key={{
-      palo_alto_panorama_config_settings.api_key }}
-  ansible.builtin.uri:
-    url: "{{ palo_alto_panorama_config_set_url }}"
-    method: GET
-    headers:
-      Content-Type: "application/x-www-form-urlencoded"
-    validate_certs: false
-    return_content: true
+    name: "{{ item.item.serial }}"
+    spec: {}
   loop: "{{ palo_alto_panorama_config_device_group_membership.results | default([]) }}"
   loop_control:
     label: "{{ item.item.hostname }} - {{ item.item.serial }} -> {{ palo_alto_panorama_config_settings.device_group }}"
@@ -94,22 +86,14 @@
     - item.serial | string | trim | length > 0
 
 - name: Add firewalls to template stack
-  vars:
-    palo_alto_panorama_config_xpath: >-
+  panos_config_entry:
+    ip_address: "{{ palo_alto_panorama_config_settings.host }}"
+    api_key: "{{ palo_alto_panorama_config_settings.api_key }}"
+    xpath: >-
       /config/devices/entry[@name='localhost.localdomain']/template-stack/entry[@name='{{
       palo_alto_panorama_config_settings.template_stack }}']/devices
-    palo_alto_panorama_config_element: "<entry name='{{ item.item.serial }}'/>"
-    palo_alto_panorama_config_set_url: >-
-      https://{{ palo_alto_panorama_config_settings.host }}/api/?type=config&action=set&xpath={{
-      palo_alto_panorama_config_xpath | urlencode }}&element={{ palo_alto_panorama_config_element | urlencode }}&key={{
-      palo_alto_panorama_config_settings.api_key }}
-  ansible.builtin.uri:
-    url: "{{ palo_alto_panorama_config_set_url }}"
-    method: GET
-    headers:
-      Content-Type: "application/x-www-form-urlencoded"
-    validate_certs: false
-    return_content: true
+    name: "{{ item.item.serial }}"
+    spec: {}
   loop: "{{ palo_alto_panorama_config_template_stack_membership.results | default([]) }}"
   loop_control:
     label: "{{ item.item.hostname }} - {{ item.item.serial }} -> {{ palo_alto_panorama_config_settings.template_stack }}"
