@@ -2,7 +2,6 @@
 
 Standalone Ansible project for bootstrapping one Palo Alto firewall or an HA pair from staging management IPs.
 
-This project mirrors the useful PAN steps from `well_site_ansible_v2` without Freshservice, NetBox, or Aruba Central dependencies.
 
 ## Inputs
 
