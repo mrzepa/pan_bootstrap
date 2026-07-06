@@ -243,6 +243,11 @@
     - name: Apply Palo Alto bootstrap lifecycle
       ansible.builtin.include_role:
         name: palo_alto_bootstrap
+        apply:
+          tags:
+            - always
+      tags:
+        - always
       when:
         - not ansible_check_mode or (firewall_reachable | default(false) | bool)
 

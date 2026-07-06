@@ -1,4 +1,74 @@
 ---
+- name: Refresh license
+  panos_lic_fetch:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+
+- name: Update content
+  paloaltonetworks.panos.panos_dynamic_updates:
+    provider: "{{ current_firewall_provider }}"
+  when: not ansible_check_mode
+
+- name: Download latest anti-virus updates
+  panos_av_update:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+  when: not ansible_check_mode
+
+- name: Get current PAN-OS version
+  paloaltonetworks.panos.panos_facts:
+    provider: "{{ current_firewall_provider }}"
+    gather_subset:
+      - system
+  register: palo_alto_bootstrap_firewall_facts
+
+- name: Update PAN-OS version if needed
+  paloaltonetworks.panos.panos_software:
+    provider: "{{ current_firewall_provider }}"
+    version: "{{ panos_version }}"
+    download: true
+    install: true
+    restart: true
+    timeout: 3600
+  register: palo_alto_bootstrap_software_update
+  when:
+    - panos_version is defined
+    - panos_version | string | trim | length > 0
+    - palo_alto_bootstrap_firewall_facts is succeeded
+    - palo_alto_bootstrap_firewall_facts.ansible_facts is defined
+    - (palo_alto_bootstrap_firewall_facts.ansible_facts.system['sw-version'] | default('')) != panos_version
+    - not ansible_check_mode
+
+- name: Wait for HTTPS to become reachable after reboot
+  ansible.builtin.wait_for:
+    host: "{{ firewall_info.staging_ip }}"
+    port: 443
+    state: started
+    delay: 10
+    timeout: 900
+  when:
+    - palo_alto_bootstrap_software_update is defined
+    - palo_alto_bootstrap_software_update.changed | default(false) | bool
+    - not ansible_check_mode
+
+- name: Wait for firewall API after reboot
+  paloaltonetworks.panos.panos_check:
+    provider: "{{ current_firewall_provider }}"
+    initial_delay: 300
+    interval: 30
+    timeout: 600
+  register: palo_alto_bootstrap_reboot_check
+  until: palo_alto_bootstrap_reboot_check is succeeded
+  retries: 10
+  delay: 30
+  changed_when: true
+  when:
+    - palo_alto_bootstrap_software_update is defined
+    - palo_alto_bootstrap_software_update.changed | default(false) | bool
+    - not ansible_check_mode
+
 - name: Set telemetry region
   paloaltonetworks.panos.panos_config_element:
     provider: "{{ current_firewall_provider }}"
@@ -107,24 +177,6 @@
   failed_when: false
   when: not ansible_check_mode
 
-- name: Refresh license
-  panos_lic_fetch:
-    ip_address: "{{ firewall_info.staging_ip }}"
-    username: "{{ firewall_username }}"
-    password: "{{ firewall_password }}"
-
-- name: Update content
-  paloaltonetworks.panos.panos_dynamic_updates:
-    provider: "{{ current_firewall_provider }}"
-  when: not ansible_check_mode
-
-- name: Download latest anti-virus updates
-  panos_av_update:
-    ip_address: "{{ firewall_info.staging_ip }}"
-    username: "{{ firewall_username }}"
-    password: "{{ firewall_password }}"
-  when: not ansible_check_mode
-
 - name: Apply standalone firewall configuration
   ansible.builtin.include_role:
     name: palo_alto_standalone_config
@@ -150,56 +202,4 @@
     - palo_alto_bootstrap_pending_changes.stdout is defined
     - palo_alto_bootstrap_pending_changes.stdout | string | trim | length > 0
     - "'No changes' not in (palo_alto_bootstrap_pending_changes.stdout | default(''))"
-    - not ansible_check_mode
-
-- name: Get current PAN-OS version
-  paloaltonetworks.panos.panos_facts:
-    provider: "{{ current_firewall_provider }}"
-    gather_subset:
-      - system
-  register: palo_alto_bootstrap_firewall_facts
-
-- name: Update PAN-OS version if needed
-  paloaltonetworks.panos.panos_software:
-    provider: "{{ current_firewall_provider }}"
-    version: "{{ panos_version }}"
-    download: true
-    install: true
-    restart: true
-    timeout: 3600
-  register: palo_alto_bootstrap_software_update
-  when:
-    - panos_version is defined
-    - panos_version | string | trim | length > 0
-    - palo_alto_bootstrap_firewall_facts is succeeded
-    - palo_alto_bootstrap_firewall_facts.ansible_facts is defined
-    - (palo_alto_bootstrap_firewall_facts.ansible_facts.system['sw-version'] | default('')) != panos_version
-    - not ansible_check_mode
-
-- name: Wait for HTTPS to become reachable after reboot
-  ansible.builtin.wait_for:
-    host: "{{ firewall_info.staging_ip }}"
-    port: 443
-    state: started
-    delay: 10
-    timeout: 900
-  when:
-    - palo_alto_bootstrap_software_update is defined
-    - palo_alto_bootstrap_software_update.changed | default(false) | bool
-    - not ansible_check_mode
-
-- name: Wait for firewall API after reboot
-  paloaltonetworks.panos.panos_check:
-    provider: "{{ current_firewall_provider }}"
-    initial_delay: 300
-    interval: 30
-    timeout: 600
-  register: palo_alto_bootstrap_reboot_check
-  until: palo_alto_bootstrap_reboot_check is succeeded
-  retries: 10
-  delay: 30
-  changed_when: true
-  when:
-    - palo_alto_bootstrap_software_update is defined
-    - palo_alto_bootstrap_software_update.changed | default(false) | bool
     - not ansible_check_mode
