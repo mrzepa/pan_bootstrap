@@ -96,18 +96,8 @@
     - palo_alto_standalone_config_security_defaults_enabled | bool
     - not ansible_check_mode
 
-- name: Apply unsupported security defaults as config elements
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
-    xpath: "{{ item.xpath }}"
-    element: "{{ item.element }}"
-    state: present
-  loop: "{{ security_default_config_elements | default([]) }}"
-  loop_control:
-    label: "{{ item.category }} - {{ item.name }}"
-  when:
-    - palo_alto_standalone_config_security_defaults_enabled | bool
-    - not ansible_check_mode
+- name: Apply security default profiles
+  ansible.builtin.include_tasks: security_profile_entries.yml
 
 - name: Apply External Dynamic Lists
   paloaltonetworks.panos.panos_edl:

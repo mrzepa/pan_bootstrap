@@ -1,70 +1,60 @@
 ---
 - name: Create zone protection profiles
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
-    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/profiles/zone-protection-profile"
-    element: |
-      <entry name="{{ item }}">
-        <flood>
-          <tcp-syn>
-            <red>
-              <alarm-rate>10000</alarm-rate>
-              <activate-rate>10000</activate-rate>
-              <maximal-rate>40000</maximal-rate>
-            </red>
-            <enable>no</enable>
-          </tcp-syn>
-          <udp>
-            <red>
-              <alarm-rate>10000</alarm-rate>
-              <activate-rate>10000</activate-rate>
-              <maximal-rate>40000</maximal-rate>
-            </red>
-            <enable>no</enable>
-          </udp>
-          <icmp>
-            <red>
-              <alarm-rate>10000</alarm-rate>
-              <activate-rate>10000</activate-rate>
-              <maximal-rate>40000</maximal-rate>
-            </red>
-            <enable>yes</enable>
-          </icmp>
-          <icmpv6>
-            <red>
-              <alarm-rate>10000</alarm-rate>
-              <activate-rate>10000</activate-rate>
-              <maximal-rate>40000</maximal-rate>
-            </red>
-            <enable>no</enable>
-          </icmpv6>
-          <other-ip>
-            <red>
-              <alarm-rate>10000</alarm-rate>
-              <activate-rate>10000</activate-rate>
-              <maximal-rate>40000</maximal-rate>
-            </red>
-            <enable>no</enable>
-          </other-ip>
-        </flood>
-        <net-inspection>
-          <rule/>
-        </net-inspection>
-        <discard-ip-spoof>yes</discard-ip-spoof>
-        <discard-strict-source-routing>yes</discard-strict-source-routing>
-        <discard-security>yes</discard-security>
-        <discard-loose-source-routing>yes</discard-loose-source-routing>
-        <discard-stream-id>yes</discard-stream-id>
-        <discard-timestamp>yes</discard-timestamp>
-        <discard-unknown-option>yes</discard-unknown-option>
-        <discard-record-route>yes</discard-record-route>
-        <discard-malformed-option>yes</discard-malformed-option>
-        <discard-tcp-split-handshake>yes</discard-tcp-split-handshake>
-        <discard-overlapping-tcp-segment-mismatch>yes</discard-overlapping-tcp-segment-mismatch>
-        <discard-icmp-ping-zero-id>yes</discard-icmp-ping-zero-id>
-        <discard-icmp-large-packet>yes</discard-icmp-large-packet>
-      </entry>
-    state: present
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Network/ZoneProtectionNetworkProfiles
+    name: "{{ item }}"
+    include_location: false
+    create_with_name: true
+    spec:
+      flood:
+        tcp-syn:
+          red:
+            alarm-rate: 10000
+            activate-rate: 10000
+            maximal-rate: 40000
+          enable: "no"
+        udp:
+          red:
+            alarm-rate: 10000
+            activate-rate: 10000
+            maximal-rate: 40000
+          enable: "no"
+        icmp:
+          red:
+            alarm-rate: 10000
+            activate-rate: 10000
+            maximal-rate: 40000
+          enable: "yes"
+        icmpv6:
+          red:
+            alarm-rate: 10000
+            activate-rate: 10000
+            maximal-rate: 40000
+          enable: "no"
+        other-ip:
+          red:
+            alarm-rate: 10000
+            activate-rate: 10000
+            maximal-rate: 40000
+          enable: "no"
+      net-inspection:
+        rule: {}
+      discard-ip-spoof: "yes"
+      discard-strict-source-routing: "yes"
+      discard-security: "yes"
+      discard-loose-source-routing: "yes"
+      discard-stream-id: "yes"
+      discard-timestamp: "yes"
+      discard-unknown-option: "yes"
+      discard-record-route: "yes"
+      discard-malformed-option: "yes"
+      discard-tcp-split-handshake: "yes"
+      discard-overlapping-tcp-segment-mismatch: "yes"
+      discard-icmp-ping-zero-id: "yes"
+      discard-icmp-large-packet: "yes"
   loop:
     - "{{ palo_alto_standalone_config_internal_zone_protection_profile }}"
     - "{{ palo_alto_standalone_config_internet_zone_protection_profile }}"
@@ -90,14 +80,15 @@
     state: present
 
 - name: Enable global LLDP
-  paloaltonetworks.panos.panos_config_element:
-    provider: "{{ current_firewall_provider }}"
-    xpath: "/config/devices/entry[@name='localhost.localdomain']/network"
-    element: |
-      <lldp>
-        <enable>yes</enable>
-      </lldp>
-    state: present
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Network/LLDP
+    include_name: false
+    include_location: false
+    spec:
+      enable: "yes"
 
 - name: Apply zone protection profiles
   paloaltonetworks.panos.panos_config_element:

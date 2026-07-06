@@ -47,6 +47,17 @@ options:
       - Some PAN-OS REST endpoints, including C(Policies/SecurityRules), require this.
     type: bool
     default: false
+  include_name:
+    description:
+      - Include C(name) as a query parameter on get, update, and delete requests.
+    type: bool
+    default: true
+  include_location:
+    description:
+      - Include C(location) and C(vsys) query parameters.
+      - Network-level endpoints often do not accept them.
+    type: bool
+    default: true
   api_version:
     type: str
     default: v11.2
@@ -150,11 +161,15 @@ class PanosRestApi:
         return {"X-PAN-KEY": self.api_key, "Content-Type": "application/json"}
 
     def params(self, include_name=True):
-        params = {
-            "location": self.module.params["location"],
-            "vsys": self.module.params["vsys"],
-        }
-        if include_name:
+        params = {}
+        if self.module.params["include_location"]:
+            params.update(
+                {
+                    "location": self.module.params["location"],
+                    "vsys": self.module.params["vsys"],
+                }
+            )
+        if include_name and self.module.params["include_name"]:
             params["name"] = self.module.params["name"]
         return params
 
@@ -202,9 +217,11 @@ class PanosRestApi:
 
 def build_spec(module):
     spec = copy.deepcopy(module.params["spec"])
-    spec.setdefault("@name", module.params["name"])
-    spec.setdefault("@location", module.params["location"])
-    if module.params["location"] == "vsys":
+    if module.params["name"]:
+        spec.setdefault("@name", module.params["name"])
+    if module.params["include_location"]:
+        spec.setdefault("@location", module.params["location"])
+    if module.params["include_location"] and module.params["location"] == "vsys":
         spec.setdefault("@vsys", module.params["vsys"])
     return spec
 
@@ -217,9 +234,11 @@ def run_module():
             "password": {"type": "str", "no_log": True},
             "api_key": {"type": "str", "no_log": True},
             "endpoint": {"type": "str", "required": True},
-            "name": {"type": "str", "required": True},
+            "name": {"type": "str"},
             "spec": {"type": "dict", "required": True},
             "create_with_name": {"type": "bool", "default": False},
+            "include_name": {"type": "bool", "default": True},
+            "include_location": {"type": "bool", "default": True},
             "api_version": {"type": "str", "default": "v11.2"},
             "location": {"type": "str", "default": "vsys"},
             "vsys": {"type": "str", "default": "vsys1"},

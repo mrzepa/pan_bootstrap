@@ -209,7 +209,26 @@ def export_profile_group(entry: ET.Element) -> dict[str, object]:
 
 
 def export_log_forwarding_profile(entry: ET.Element) -> dict[str, object]:
-    return {"name": entry.attrib["name"], "state": "present"}
+    spec = xml_entry_to_spec(entry, root=True)
+    return {"name": entry.attrib["name"], "spec": spec}
+
+
+def xml_entry_to_spec(element: ET.Element, *, root: bool = False):
+    spec = {
+        f"@{key}": value
+        for key, value in element.attrib.items()
+        if not (root and key == "name")
+    }
+    children = list(element)
+    if children:
+        grouped = {}
+        for child in children:
+            grouped.setdefault(child.tag, []).append(xml_entry_to_spec(child))
+        for tag, values in grouped.items():
+            spec[tag] = values if tag == "entry" or len(values) > 1 else values[0]
+    elif element.text and element.text.strip():
+        return element.text.strip()
+    return spec
 
 
 def export_certificate(entry: ET.Element, certificate_dir: Path) -> dict[str, object]:

@@ -1,0 +1,31 @@
+---
+- name: Apply structured security profile entries
+  panos_config_entry:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    xpath: "{{ item.xpath }}"
+    name: "{{ item.name }}"
+    spec: "{{ item.spec }}"
+  loop: "{{ security_default_config_entries | default([]) }}"
+  loop_control:
+    label: "{{ item.category }} - {{ item.name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode
+
+- name: Apply REST-backed security default objects
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: "{{ item.endpoint }}"
+    name: "{{ item.name }}"
+    spec: "{{ item.spec }}"
+    create_with_name: true
+  loop: "{{ security_default_rest_objects | default([]) }}"
+  loop_control:
+    label: "{{ item.endpoint }} - {{ item.name }}"
+  when:
+    - palo_alto_standalone_config_security_defaults_enabled | bool
+    - not ansible_check_mode
