@@ -50,9 +50,6 @@
         <net-inspection>
           <rule/>
         </net-inspection>
-        <packet-buffer-protection>
-          <enable>yes</enable>
-        </packet-buffer-protection>
         <discard-ip-spoof>yes</discard-ip-spoof>
         <discard-strict-source-routing>yes</discard-strict-source-routing>
         <discard-security>yes</discard-security>

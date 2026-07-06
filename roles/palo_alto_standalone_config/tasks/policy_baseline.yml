@@ -290,33 +290,35 @@
     - palo_alto_standalone_config_internet_interfaces | length > 0
     - not ansible_check_mode
 
-- name: Override intrazone-default logging and profile group
-  paloaltonetworks.panos.panos_security_rule:
-    provider: "{{ current_firewall_provider }}"
-    rule_name: intrazone-default
-    description: "Default intrazone rule with logging and the internal security profile group applied."
-    rule_type: intrazone
-    action: allow
-    log_end: true
-    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
-    group_profile: "{{ palo_alto_standalone_config_internal_profile_group }}"
-    tag_name:
-      - "{{ palo_alto_standalone_config_default_rule_tag }}"
-    vsys: vsys1
-    state: present
-  when: not ansible_check_mode
-
-- name: Override interzone-default to drop and log
-  paloaltonetworks.panos.panos_security_rule:
-    provider: "{{ current_firewall_provider }}"
-    rule_name: interzone-default
-    description: "Default interzone rule changed to drop and log unmatched cross-zone traffic."
-    rule_type: interzone
-    action: drop
-    log_end: true
-    log_setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
-    tag_name:
-      - "{{ palo_alto_standalone_config_default_rule_tag }}"
-    vsys: vsys1
-    state: present
+- name: Override default security rules
+  panos_rest_object:
+    ip_address: "{{ firewall_info.staging_ip }}"
+    username: "{{ firewall_username }}"
+    password: "{{ firewall_password }}"
+    endpoint: Policies/DefaultSecurityRules
+    name: "{{ item.name }}"
+    spec: "{{ item.spec }}"
+  loop:
+    - name: intrazone-default
+      spec:
+        action: allow
+        log-end: "yes"
+        log-setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+        tag:
+          member:
+            - "{{ palo_alto_standalone_config_default_rule_tag }}"
+        profile-setting:
+          group:
+            member:
+              - "{{ palo_alto_standalone_config_internal_profile_group }}"
+    - name: interzone-default
+      spec:
+        action: drop
+        log-end: "yes"
+        log-setting: "{{ palo_alto_standalone_config_log_forwarding_profile }}"
+        tag:
+          member:
+            - "{{ palo_alto_standalone_config_default_rule_tag }}"
+  loop_control:
+    label: "{{ item.name }}"
   when: not ansible_check_mode

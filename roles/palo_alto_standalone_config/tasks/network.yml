@@ -30,7 +30,6 @@
     name: "{{ palo_alto_standalone_config_interface_management_profile }}"
     ping: true
     state: present
-    vsys: vsys1
   when: not ansible_check_mode
 
 - name: Configure internet interfaces
