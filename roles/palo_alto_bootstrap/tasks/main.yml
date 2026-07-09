@@ -69,7 +69,16 @@
     - palo_alto_bootstrap_software_update.changed | default(false) | bool
     - not ansible_check_mode
 
-- name: Set telemetry region
+- name: Set telemetry region for PAN-OS before 12.1
+  vars:
+    palo_alto_bootstrap_current_panos_major_minor: >-
+      {{
+        palo_alto_bootstrap_firewall_facts.ansible_facts.system['sw-version']
+        | default('0.0')
+        | regex_replace('^([0-9]+)\.([0-9]+).*$', '\1.\2')
+      }}
+    palo_alto_bootstrap_target_panos_major_minor: >-
+      {{ panos_version | default('0.0') | regex_replace('^([0-9]+)\.([0-9]+).*$', '\1.\2') }}
   panos_config_set:
     ip_address: "{{ firewall_info.staging_ip }}"
     username: "{{ firewall_username }}"
@@ -81,7 +90,10 @@
         product-usage: "yes"
         threat-prevention: "yes"
         region: "{{ palo_alto_bootstrap_telemetry_region }}"
-  when: not ansible_check_mode
+  when:
+    - palo_alto_bootstrap_current_panos_major_minor is version('12.1', '<')
+    - palo_alto_bootstrap_target_panos_major_minor is version('12.1', '<')
+    - not ansible_check_mode
 
 - name: Set hostname
   panos_config_set:

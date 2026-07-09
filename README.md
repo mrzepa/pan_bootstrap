@@ -11,7 +11,8 @@ For every firewall, the bootstrap can:
 - refresh licenses
 - install content and anti-virus updates
 - upgrade PAN-OS to the requested version
-- set telemetry region and hostname
+- set telemetry region on PAN-OS versions before 12.1
+- set hostname
 - optionally enable PAN-OS advanced routing
 - remove factory-default objects that conflict with a clean baseline
 - disable SIP ALG
@@ -40,6 +41,8 @@ For Panorama-managed firewalls, the local bootstrap points the firewall at Panor
 This project is intended for new or factory-reset firewalls. It removes factory defaults and applies opinionated bootstrap settings.
 
 Advanced routing is optional. When selected, it is a local firewall lifecycle change that requires a local commit and reboot. The API-driven flow used here does not migrate existing virtual router configuration into logical router configuration. If existing routing must be preserved, convert advanced routing from the PAN-OS GUI first so PAN-OS can perform the migration workflow.
+
+For PAN-OS 12.1 and newer, telemetry is managed by Strata Cloud Manager. The bootstrap skips local telemetry configuration when a firewall is already running 12.1 or newer, or when `panos_version` will upgrade it to 12.1 or newer.
 
 The generated default security policy blocks interzone traffic except for the explicit bootstrap allow rules. Site-specific security policy must be reviewed and extended after bootstrap.
 

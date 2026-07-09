@@ -8,7 +8,7 @@ This role runs the common firewall bootstrap lifecycle for every firewall, wheth
 - Installs content and anti-virus updates.
 - Upgrades PAN-OS when `panos_version` is set and the firewall is not already running that version.
 - Waits for the firewall to return after an OS upgrade reboot.
-- Sets telemetry region and hostname.
+- Sets telemetry region on PAN-OS versions before 12.1, then sets hostname.
 - Enables or disables advanced routing locally.
 - Removes factory-default objects that interfere with a clean baseline.
 - Disables SIP ALG.
@@ -18,6 +18,8 @@ This role runs the common firewall bootstrap lifecycle for every firewall, wheth
 ## Important Ordering
 
 Licensing and dynamic content updates intentionally run before the PAN-OS upgrade and before configuration changes. Some firewall features and objects are unavailable until the license and content state is current.
+
+Telemetry is intentionally evaluated after the PAN-OS upgrade step. PAN-OS 12.1 and newer devices have telemetry managed by Strata Cloud Manager, so this role skips local telemetry configuration when the current version is 12.1 or newer, or when the target `panos_version` is 12.1 or newer.
 
 Advanced routing is handled here instead of inside the standalone role because it requires a local firewall commit and reboot lifecycle. This must happen even when the firewall is later managed by Panorama.
 
